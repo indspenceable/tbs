@@ -6,20 +6,37 @@ class Movement
   end
 end
 
-class Attack
+class MeleeAttack
   def sprite
     53
   end
   def targetted?
     :select_from_targets
   end
-  def targets actor, units
+  def targets actor, units, map
     units.select{|u| (u.x - actor.x).abs + (u.y-actor.y).abs == 1 }.map do |u|
       [u.x, u.y]
     end
   end
   def enact actor, target
     puts "BOOM< #{actor} attacked #{target}"
+  end
+end
+
+class Heal
+  def sprite
+    20
+  end
+  def targetted?
+    :select_from_targets
+  end
+  def targets actor, units, map
+    units.select{|u| (u.x - actor.x).abs + (u.y-actor.y).abs <= 3 }.map do |u|
+      [u.x, u.y]
+    end
+  end
+  def enact(unit, target)
+    puts "heal #{target}"
   end
 end
 
@@ -41,9 +58,9 @@ class Unit
   def initialize x,y,sprite
     @x, @y, @sprite = x, y, sprite
     @moves = [
-      Attack.new,
+      MeleeAttack.new,
       Movement.new,
-      nil,
+      Heal.new,
       Defend.new,
     ]
   end
@@ -64,11 +81,11 @@ class Game < Gosu::Window
     @chars = Gosu::Image.load_tiles(self, 'characters.png', 32, 32, true)
     @selector_x, @selector_y = 0,0
 
-    @units = [
-      Unit.new(3,6,9),
-      Unit.new(3,7,16),
-      Unit.new(4,6,38)
-    ]
+    @units = []
+    (rand(50)+10).times.map do
+      x,y = rand(20),rand(15)
+      @units << Unit.new(x,y,rand(100)) unless unit_at(x,y)
+    end
     @current_action = :select_unit
     @current_unit = nil
   end
@@ -113,9 +130,9 @@ class Game < Gosu::Window
 
           #TODO make this better
           if @current_move == u.moves[m]
-            @effects[u.moves[m].sprite].draw(
-              (u.x + (m+0)%2 * ((m/2)*2-1))*32-8,
-              (u.y + (m+1)%2 * ((m/2)*2-1))*32-8,
+            @effects[139].draw(
+              (u.x + (m+0)%2 * ((m/2)*2-1))*32,
+              (u.y + (m+1)%2 * ((m/2)*2-1))*32,
               2
             )
           end
@@ -125,13 +142,13 @@ class Game < Gosu::Window
     if @current_action == :select_target
       @targets.each_with_index do |(x,y), i|
          if i == @target_index
-          @effects[0].draw(
+          @effects[173].draw(
             x*32,
             y*32,
             3
           )
         else
-          @effects[1].draw(
+          @effects[171].draw(
             x*32,
             y*32,
             3
@@ -169,7 +186,7 @@ class Game < Gosu::Window
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_targets
         @current_action = :select_target
-        @targets = @current_move.targets(@current_unit, @units - [@current_unit])
+        @targets = @current_move.targets(@current_unit, @units - [@current_unit], @map)
         @target_index = 0
         puts "TARGETS ARE #{@targets}"
       end
