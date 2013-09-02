@@ -2,13 +2,13 @@ require 'gosu'
 
 class Movement
   def sprite
-    50
+    58
   end
 end
 
 class Attack
   def sprite
-    49
+    53
   end
   def targetted?
     :select_from_targets
