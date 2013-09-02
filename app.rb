@@ -1,5 +1,12 @@
 require 'gosu'
 
+def distance(u1,u2)
+  (u1.x - u2.x).abs + (u1.y-u2.y).abs
+end
+def _unit_at(units,x,y)
+  units.find{|u| u.x == x && u.y == y}
+end
+
 class Movement
   def sprite
     58
@@ -14,7 +21,7 @@ class MeleeAttack
     :select_from_targets
   end
   def targets actor, units, map
-    units.select{|u| (u.x - actor.x).abs + (u.y-actor.y).abs == 1 }.map do |u|
+    units.select{|u| distance(u,actor) == 1 }.map do |u|
       [u.x, u.y]
     end
   end
@@ -31,12 +38,40 @@ class Heal
     :select_from_targets
   end
   def targets actor, units, map
-    units.select{|u| (u.x - actor.x).abs + (u.y-actor.y).abs <= 3 }.map do |u|
+    units.select{|u| distance(u, actor) <= 3 }.map do |u|
       [u.x, u.y]
     end
   end
   def enact(unit, target)
     puts "heal #{target}"
+  end
+end
+
+class Bow
+  def sprite
+    64
+  end
+    def targetted?
+    :select_from_targets
+  end
+  def targets actor, units, map
+    _targets = []
+    4.times do |i|
+      x = (i+0)%2 * ((i/2)*2-1)
+      y = (i+1)%2 * ((i/2)*2-1)
+      5.times do |j|
+        puts "Looking at #{actor.x + x*(j+1)}, #{actor.y + y*(j+1)}"
+        u = _unit_at(units, actor.x + x*(j+1), actor.y + y*(j+1))
+        if u
+          _targets << u
+          break
+        end
+      end
+    end
+    _targets.map{|u| [u.x, u.y]}
+  end
+  def enact(unit, target)
+    puts "Ranged attack! -> #{target}"
   end
 end
 
@@ -59,7 +94,7 @@ class Unit
     @x, @y, @sprite = x, y, sprite
     @moves = [
       MeleeAttack.new,
-      Movement.new,
+      Bow.new,
       Heal.new,
       Defend.new,
     ]
@@ -162,7 +197,7 @@ class Game < Gosu::Window
   end
 
   def unit_at(x,y)
-    @units.find{|u| u.x == x && u.y == y}
+    _unit_at(@units,x,y)
   end
 
   def select_unit!
