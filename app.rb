@@ -1,4 +1,5 @@
 require 'gosu'
+require './board'
 
 def distance(u1,u2)
   (u1.x - u2.x).abs + (u1.y-u2.y).abs
@@ -65,6 +66,8 @@ class Bow
         if u
           _targets << u
           break
+        elsif map.blocked?(actor.x + x*(j+1), actor.y + y*(j+1))
+          break
         end
       end
     end
@@ -105,10 +108,8 @@ class Game < Gosu::Window
   def initialize
     super(640,480,false)
 
-    @map = Array.new(20) do
-      Array.new(15) do
-        :floor
-      end
+    @map = Board.new(20,15) do |x,y|
+      rand(3) == 0 ? :wall : :floor
     end
 
     @tiles = Gosu::Image.load_tiles(self, 'tiles.png', 32, 32, true)
@@ -119,7 +120,7 @@ class Game < Gosu::Window
     @units = []
     (rand(50)+10).times.map do
       x,y = rand(20),rand(15)
-      @units << Unit.new(x,y,rand(100)) unless unit_at(x,y)
+      @units << Unit.new(x,y,rand(100)) unless unit_at(x,y) || @map.blocked?(x,y)
     end
     @current_action = :select_unit
     @current_unit = nil
@@ -145,11 +146,11 @@ class Game < Gosu::Window
   end
 
   def draw
-    @map.each_with_index do |column, x|
-      column.each_with_index do |tile, y|
-        if tile==:floor
-          @tiles[5].draw(x*32, y*32, 0)
-        end
+    @map.each_with_x_y do |tile, x, y|
+      if tile==:floor
+        @tiles[12].draw(x*32, y*32, 0)
+      else
+        @tiles[5].draw(x*32, y*32, 0)
       end
     end
     @units.each do |u|
