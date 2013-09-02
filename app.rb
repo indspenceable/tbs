@@ -18,6 +18,9 @@ class Attack
       [u.x, u.y]
     end
   end
+  def enact actor, target
+    puts "BOOM< #{actor} attacked #{target}"
+  end
 end
 
 class Defend
@@ -28,7 +31,8 @@ class Defend
     false
   end
   def enact(unit)
-    puts "DEFENDED #{unit}"
+    puts "DEFENDED #{unit}."
+    # This will add a buff to the unit, which will expire in 1 turn.
   end
 end
 
@@ -63,7 +67,7 @@ class Game < Gosu::Window
     @units = [
       Unit.new(3,6,9),
       Unit.new(3,7,16),
-      Unit.new(9,12,38)
+      Unit.new(4,6,38)
     ]
     @current_action = :select_unit
     @current_unit = nil
@@ -118,6 +122,23 @@ class Game < Gosu::Window
         end
       end
     end
+    if @current_action == :select_target
+      @targets.each_with_index do |(x,y), i|
+         if i == @target_index
+          @effects[0].draw(
+            x*32,
+            y*32,
+            3
+          )
+        else
+          @effects[1].draw(
+            x*32,
+            y*32,
+            3
+          )
+        end
+      end
+    end
     if @current_action == :select_unit
       @effects[123].draw(@selector_x*32, @selector_y*32, 0)
     end
@@ -134,6 +155,7 @@ class Game < Gosu::Window
       @current_unit = u
       @current_move = nil
       @targets = nil
+      @target_index = nil
     end
   end
   def unselect_unit!
@@ -141,17 +163,36 @@ class Game < Gosu::Window
     @current_unit = nil
     @current_move =
     @targets = nil
+    @target_index = nil
   end
   def select_move!
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_targets
         @current_action = :select_target
         @targets = @current_move.targets(@current_unit, @units - [@current_unit])
+        @target_index = 0
+        puts "TARGETS ARE #{@targets}"
       end
     else
       @current_move.enact(@current_unit)
       unselect_unit!
     end
+  end
+  def select_target!
+    @current_move.enact(@current_unit, unit_at(*@targets[@target_index]))
+    unselect_unit!
+  end
+
+  def prev_target!
+    @target_index -= 1
+    @target_index = @targets.size-1 if @target_index == -1
+  end
+  def next_target!
+    @target_index += 1
+    @target_index = 0 if @target_index == @targets.size
+  end
+  def current_target
+    @targets[@target_index]
   end
 
   def button_down(id)
@@ -190,6 +231,17 @@ class Game < Gosu::Window
         # no-op
         puts "BOP"
         unselect_unit!
+      end
+    elsif @current_action == :select_target
+      case id
+      when buttons[:left], buttons[:up]
+        prev_target!
+      when buttons[:right], buttons[:down]
+        next_target!
+      when buttons[:select]
+        select_target!
+      when buttons[:cancel]
+        select_unit!
       end
     end
   end
