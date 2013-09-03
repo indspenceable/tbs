@@ -1,6 +1,10 @@
 require 'gosu'
 require './board'
 
+# TODO this should all be encapsulated somewhere.
+def point_dist(x,y,x2,y2)
+  (x-x2).abs + (y-y2).abs
+end
 def distance(u1,u2)
   (u1.x - u2.x).abs + (u1.y-u2.y).abs
 end
@@ -11,6 +15,14 @@ end
 class Movement
   def sprite
     58
+  end
+  def targetted?
+    :path
+  end
+  def enact actor, path
+    point = path[-1]
+    actor.x = point[0]
+    actor.y = point[1]
   end
 end
 
@@ -97,7 +109,7 @@ class Unit
     @x, @y, @sprite = x, y, sprite
     @moves = [
       MeleeAttack.new,
-      Bow.new,
+      Movement.new,
       Heal.new,
       Defend.new,
     ]
@@ -175,6 +187,20 @@ class Game < Gosu::Window
         end
       end
     end
+    if @current_action == :select_path
+      @path.each do |x,y|
+        @effects[173].draw(
+          x*32,
+          y*32,
+          3
+        )
+      end
+      @effects[171].draw(
+        @path_select_x*32,
+        @path_select_y*32,
+        5
+      )
+    end
     if @current_action == :select_target
       @targets.each_with_index do |(x,y), i|
          if i == @target_index
@@ -209,6 +235,8 @@ class Game < Gosu::Window
       @current_move = nil
       @targets = nil
       @target_index = nil
+      @path_select_x, @path_select_y = nil, nil
+      @path = nil
     end
   end
   def unselect_unit!
@@ -217,14 +245,24 @@ class Game < Gosu::Window
     @current_move =
     @targets = nil
     @target_index = nil
+    @path_select_x, @path_select_y = nil, nil
+    @path = nil
   end
   def select_move!
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_targets
-        @current_action = :select_target
         @targets = @current_move.targets(@current_unit, @units - [@current_unit], @map)
-        @target_index = 0
-        puts "TARGETS ARE #{@targets}"
+        # only move on if there are any targets...
+        if @targets.any?
+          @current_action = :select_target
+          @target_index = 0
+        else
+          @targets = nil
+        end
+      elsif @current_move.targetted? == :path
+        @current_action = :select_path
+        @path = [[@current_unit.x, @current_unit.y]]
+        @path_select_x, @path_select_y = @current_unit.x, @current_unit.y
       end
     else
       @current_move.enact(@current_unit)
@@ -248,9 +286,24 @@ class Game < Gosu::Window
     @targets[@target_index]
   end
 
+  def update_path!
+    point = [@path_select_x, @path_select_y]
+    if @path.include?(point)
+      # shorten down to that point
+      @path = @path[0,@path.index(point)+1]
+    elsif point_dist(*@path[-1], *point) == 1 && @map.open?(*point) && !unit_at(*point)
+      @path << point
+    end
+  end
+
+  def select_path!
+    @current_move.enact(@current_unit, @path)
+    @selector_x, @selector_y = @current_unit.x, @current_unit.y
+    unselect_unit!
+  end
+
   def button_down(id)
     return exit if id == Gosu::KbEscape
-
 
     if @current_action == :select_unit
       case id
@@ -281,8 +334,6 @@ class Game < Gosu::Window
       when buttons[:select]
         select_move!
       when buttons[:cancel]
-        # no-op
-        puts "BOP"
         unselect_unit!
       end
     elsif @current_action == :select_target
@@ -295,6 +346,25 @@ class Game < Gosu::Window
         select_target!
       when buttons[:cancel]
         select_unit!
+      end
+    elsif @current_action == :select_path
+      case id
+      when buttons[:left]
+        @path_select_x -= 1
+        update_path!
+      when buttons[:right]
+        @path_select_x += 1
+        update_path!
+      when buttons[:up]
+        @path_select_y -= 1
+        update_path!
+      when buttons[:down]
+        @path_select_y += 1
+        update_path!
+      when buttons[:select]
+        select_path!
+      when buttons[:cancel]
+        unselect_unit!
       end
     end
   end
