@@ -1,4 +1,4 @@
-class Game
+class Board
   attr_reader :units
 
   def initialize(x,y)

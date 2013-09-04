@@ -123,7 +123,7 @@ class GameUi < Gosu::Window
   def initialize
     super(640,480,false)
 
-    @game = Board.new(20,15) do |x,y|
+    @game = Game.new(20,15) do |x,y|
       rand(3) == 0 ? :wall : :floor
     end
 
