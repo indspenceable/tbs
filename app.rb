@@ -19,7 +19,7 @@ class Movement
   def targetted?
     :path
   end
-  def enact actor, path
+  def enact actor, game, path
     point = path[-1]
     actor.x = point[0]
     actor.y = point[1]
@@ -33,13 +33,13 @@ class MeleeAttack
   def targetted?
     :select_from_targets
   end
-  def targets actor, units, map
-    units.select{|u| distance(u,actor) == 1 }.map do |u|
+  def targets actor, game
+    game.units.select{|u| distance(u,actor) == 1 }.map do |u|
       [u.x, u.y]
     end
   end
-  def enact actor, target
-    puts "BOOM< #{actor} attacked #{target}"
+  def enact actor, game, target
+    puts "MeleeAttack#enact #{actor} attacked #{target}"
   end
 end
 
@@ -50,12 +50,12 @@ class Heal
   def targetted?
     :select_from_targets
   end
-  def targets actor, units, map
-    units.select{|u| distance(u, actor) <= 3 }.map do |u|
+  def targets actor, game
+    game.units.select{|u| distance(u, actor) <= 3 }.map do |u|
       [u.x, u.y]
     end
   end
-  def enact(unit, target)
+  def enact(unit, game, target)
     puts "heal #{target}"
   end
 end
@@ -67,14 +67,14 @@ class Bow
     def targetted?
     :select_from_targets
   end
-  def targets actor, units, map
+  def targets actor, game
     _targets = []
     4.times do |i|
       x = (i+0)%2 * ((i/2)*2-1)
       y = (i+1)%2 * ((i/2)*2-1)
       5.times do |j|
         puts "Looking at #{actor.x + x*(j+1)}, #{actor.y + y*(j+1)}"
-        u = _unit_at(units, actor.x + x*(j+1), actor.y + y*(j+1))
+        u = game.unit_at(units, actor.x + x*(j+1), actor.y + y*(j+1))
         if u
           _targets << u
           break
@@ -85,7 +85,7 @@ class Bow
     end
     _targets.map{|u| [u.x, u.y]}
   end
-  def enact(unit, target)
+  def enact(unit, game, target)
     puts "Ranged attack! -> #{target}"
   end
 end
@@ -97,7 +97,7 @@ class Defend
   def targetted?
     false
   end
-  def enact(unit)
+  def enact(unit, game)
     puts "DEFENDED #{unit}."
     # This will add a buff to the unit, which will expire in 1 turn.
   end
@@ -119,11 +119,11 @@ class Unit
   end
 end
 
-class Game < Gosu::Window
+class GameUi < Gosu::Window
   def initialize
     super(640,480,false)
 
-    @map = Board.new(20,15) do |x,y|
+    @game = Board.new(20,15) do |x,y|
       rand(3) == 0 ? :wall : :floor
     end
 
@@ -132,10 +132,9 @@ class Game < Gosu::Window
     @chars = Gosu::Image.load_tiles(self, 'characters.png', 32, 32, true)
     @selector_x, @selector_y = 0,0
 
-    @units = []
     (rand(50)+10).times.map do
       x,y = rand(20),rand(15)
-      @units << Unit.new(x,y) unless unit_at(x,y) || @map.blocked?(x,y)
+      @game.add_unit!(Unit.new(x,y)) unless @game.unit_at(x,y) || @game.blocked?(x,y)
     end
     @current_action = :select_unit
     @current_unit = nil
@@ -161,14 +160,14 @@ class Game < Gosu::Window
   end
 
   def draw
-    @map.each_with_x_y do |tile, x, y|
+    @game.each_with_x_y do |tile, x, y|
       if tile==:floor
         @tiles[12].draw(x*32, y*32, 0)
       else
         @tiles[5].draw(x*32, y*32, 0)
       end
     end
-    @units.each do |u|
+    @game.units.each do |u|
       @chars[u.sprite].draw(u.x*32, u.y*32, 1)
       if u == @current_unit && @current_action == :select_move
         4.times do |m|
@@ -226,12 +225,8 @@ class Game < Gosu::Window
     end
   end
 
-  def unit_at(x,y)
-    _unit_at(@units,x,y)
-  end
-
   def select_unit!
-    u = unit_at(@selector_x, @selector_y)
+    u = @game.unit_at(@selector_x, @selector_y)
     if u
       @current_action = :select_move
       @current_unit = u
@@ -254,7 +249,7 @@ class Game < Gosu::Window
   def select_move!
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_targets
-        @targets = @current_move.targets(@current_unit, @units - [@current_unit], @map)
+        @targets = @current_move.targets(@current_unit, @game)
         # only move on if there are any targets...
         if @targets.any?
           @current_action = :select_target
@@ -268,12 +263,12 @@ class Game < Gosu::Window
         @path_select_x, @path_select_y = @current_unit.x, @current_unit.y
       end
     else
-      @current_move.enact(@current_unit)
+      @current_move.enact(@current_unit, @game)
       unselect_unit!
     end
   end
   def select_target!
-    @current_move.enact(@current_unit, unit_at(*@targets[@target_index]))
+    @current_move.enact(@current_unit, @game, @targets[@target_index])
     unselect_unit!
   end
 
@@ -294,13 +289,13 @@ class Game < Gosu::Window
     if @path.include?(point)
       # shorten down to that point
       @path = @path[0,@path.index(point)+1]
-    elsif point_dist(*@path[-1], *point) == 1 && @map.open?(*point) && !unit_at(*point)
+    elsif point_dist(*@path[-1], *point) == 1 && @game.open?(*point) && !@game.unit_at(*point)
       @path << point
     end
   end
 
   def select_path!
-    @current_move.enact(@current_unit, @path)
+    @current_move.enact(@current_unit, @game, @path)
     @selector_x, @selector_y = @current_unit.x, @current_unit.y
     unselect_unit!
   end
@@ -373,4 +368,4 @@ class Game < Gosu::Window
   end
 end
 
-Game.new.show
+GameUi.new.show
