@@ -74,11 +74,11 @@ class Bow
       y = (i+1)%2 * ((i/2)*2-1)
       5.times do |j|
         puts "Looking at #{actor.x + x*(j+1)}, #{actor.y + y*(j+1)}"
-        u = game.unit_at(units, actor.x + x*(j+1), actor.y + y*(j+1))
+        u = game.unit_at(actor.x + x*(j+1), actor.y + y*(j+1))
         if u
           _targets << u
           break
-        elsif map.blocked?(actor.x + x*(j+1), actor.y + y*(j+1))
+        elsif game.blocked?(actor.x + x*(j+1), actor.y + y*(j+1))
           break
         end
       end
