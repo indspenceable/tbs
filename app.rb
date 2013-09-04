@@ -104,14 +104,17 @@ class Defend
 end
 
 class Unit
-  attr_accessor :x, :y, :sprite, :moves
-  def initialize x,y,sprite
-    @x, @y, @sprite = x, y, sprite
+  def sprite
+    1
+  end
+  attr_accessor :x, :y, :moves
+  def initialize x,y
+    @x, @y = x, y
     @moves = [
       MeleeAttack.new,
       Movement.new,
-      Heal.new,
       Defend.new,
+      Bow.new,
     ]
   end
 end
@@ -132,7 +135,7 @@ class Game < Gosu::Window
     @units = []
     (rand(50)+10).times.map do
       x,y = rand(20),rand(15)
-      @units << Unit.new(x,y,rand(100)) unless unit_at(x,y) || @map.blocked?(x,y)
+      @units << Unit.new(x,y) unless unit_at(x,y) || @map.blocked?(x,y)
     end
     @current_action = :select_unit
     @current_unit = nil
