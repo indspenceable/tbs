@@ -1,5 +1,6 @@
 require 'gosu'
 require './game'
+require './state_change'
 
 # TODO this should all be encapsulated somewhere.
 def point_dist(x,y,x2,y2)
@@ -19,10 +20,17 @@ class Movement
   def targetted?
     :path
   end
-  def enact actor, game, path
-    point = path[-1]
-    actor.x = point[0]
-    actor.y = point[1]
+  def add_state_changes actor, path, starting_state
+    # point = path[-1]
+    # actor.x = point[0]
+    # actor.y = point[1]
+    gs = starting_state
+    state_changes = []
+    path[1,path.length-1].each do |point|
+      state_changes << StateChange::MoveUnit.new(gs, actor.uid, point)
+      gs = state_changes.last.ending_state
+    end
+    state_changes
   end
   def max_path_length
     5
@@ -44,8 +52,10 @@ class MeleeAttack
       [u.x, u.y]
     end
   end
-  def enact actor, game, target
-    game.add_animation
+
+  def add_state_changes actor, target, starting_state
+    sc = MeleeAttack.new(gs, actor.uid, target.uid)
+    sc + sc.ending_state.passive_state_changes
   end
 end
 
@@ -113,9 +123,10 @@ class Unit
   def sprite
     1
   end
-  attr_accessor :x, :y, :moves
-  def initialize x,y
+  attr_accessor :x, :y, :moves, :uid
+  def initialize x,y, uid
     @x, @y = x, y
+    @uid = uid
     @moves = [
       MeleeAttack.new,
       Movement.new,
@@ -129,19 +140,29 @@ class GameUi < Gosu::Window
   def initialize
     super(640,480,false)
 
-    @game = Game.new(20,15) do |x,y|
+
+    starting_game_state = Game.new(20,15) do |x,y|
       rand(3) == 0 ? :wall : :floor
     end
+
 
     @tiles = Gosu::Image.load_tiles(self, 'tiles.png', 32, 32, true)
     @effects = Gosu::Image.load_tiles(self, 'effects.png', 32, 32, true)
     @chars = Gosu::Image.load_tiles(self, 'characters.png', 32, 32, true)
     @selector_x, @selector_y = 0,0
 
-    (rand(50)+10).times.map do
+    (rand(50)+10).times.map do |i|
       x,y = rand(20),rand(15)
-      @game.add_unit!(Unit.new(x,y)) unless @game.unit_at(x,y) || @game.blocked?(x,y)
+      unless starting_game_state.unit_at(x,y) || starting_game_state.blocked?(x,y)
+        starting_game_state.add_unit!(Unit.new(x,y,i))
+      end
+      puts "UID is #{i}"
     end
+
+    @state_changes = [StateChange::StartGame.new(starting_game_state)]
+    current_state
+
+
     @current_action = :select_unit
     @current_unit = nil
   end
@@ -165,15 +186,47 @@ class GameUi < Gosu::Window
     }
   end
 
+  def can_update_state?
+    @count ||= 10
+    @count >= 10
+  end
+
+  def most_recent_state?
+    @current_state_id == @state_changes.length-1
+  end
+
+  def current_state
+    @current_state_id ||= -1
+    if (!most_recent_state? && can_update_state?) || @state.nil?
+      @current_state_id += 1
+      @count = 0
+      @state = @state_changes[@current_state_id].ending_state
+    end
+    return @state
+
+
+    @state_count ||= -1
+    return @state if @state_count < @state_changes.length ||
+      (@state && !can_update_state?)
+    @state_count += 1
+    @cached_state = @state_changes[@state_count]
+    @state = @cached_state.ending_state
+    @count = 0
+    @state
+  end
+
   def draw
-    @game.each_with_x_y do |tile, x, y|
+    @count ||= 10
+    @count += 1
+
+    current_state.each_with_x_y do |tile, x, y|
       if tile==:floor
         @tiles[12].draw(x*32, y*32, 0)
       else
         @tiles[5].draw(x*32, y*32, 0)
       end
     end
-    @game.units.each do |u|
+    current_state.units.each do |u|
       @chars[u.sprite].draw(u.x*32, u.y*32, 1)
       if u == @current_unit && @current_action == :select_move
         4.times do |m|
@@ -194,44 +247,47 @@ class GameUi < Gosu::Window
         end
       end
     end
-    if @current_action == :select_path
-      @path.each do |x,y|
-        @effects[173].draw(
-          x*32,
-          y*32,
-          3
-        )
-      end
-      @effects[171].draw(
-        @path_select_x*32,
-        @path_select_y*32,
-        5
-      )
-    end
-    if @current_action == :select_target
-      @targets.each_with_index do |(x,y), i|
-         if i == @target_index
+
+    if most_recent_state?
+      if @current_action == :select_path
+        @path.each do |x,y|
           @effects[173].draw(
             x*32,
             y*32,
             3
           )
-        else
-          @effects[171].draw(
-            x*32,
-            y*32,
-            3
-          )
+        end
+        @effects[171].draw(
+          @path_select_x*32,
+          @path_select_y*32,
+          5
+        )
+      end
+      if @current_action == :select_target
+        @targets.each_with_index do |(x,y), i|
+           if i == @target_index
+            @effects[173].draw(
+              x*32,
+              y*32,
+              3
+            )
+          else
+            @effects[171].draw(
+              x*32,
+              y*32,
+              3
+            )
+          end
         end
       end
     end
-    if @current_action == :select_unit
+    if @current_action == :select_unit && most_recent_state?
       @effects[123].draw(@selector_x*32, @selector_y*32, 0)
     end
   end
 
   def select_unit!
-    u = @game.unit_at(@selector_x, @selector_y)
+    u = current_state.unit_at(@selector_x, @selector_y)
     if u
       @current_action = :select_move
       @current_unit = u
@@ -254,7 +310,7 @@ class GameUi < Gosu::Window
   def select_move!
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_targets
-        @targets = @current_move.targets(@current_unit, @game)
+        @targets = @current_move.targets(@current_unit, current_state)
         # only move on if there are any targets...
         if @targets.any?
           @current_action = :select_target
@@ -268,12 +324,12 @@ class GameUi < Gosu::Window
         @path_select_x, @path_select_y = @current_unit.x, @current_unit.y
       end
     else
-      @current_move.enact(@current_unit, @game)
+      @current_move.enact(@current_unit, current_state)
       unselect_unit!
     end
   end
   def select_target!
-    @current_move.enact(@current_unit, @game, @targets[@target_index])
+    @current_move.enact(@current_unit, current_state, @targets[@target_index])
     unselect_unit!
   end
 
@@ -295,7 +351,7 @@ class GameUi < Gosu::Window
       # shorten down to that point
       @path = @path[0,@path.index(point)+1]
     elsif point_dist(*@path[-1], *point) == 1 &&
-      @current_move.valid_on_path?(point, @game) &&
+      @current_move.valid_on_path?(point, current_state) &&
       @path.length <= @current_move.max_path_length
 
       @path << point
@@ -303,7 +359,7 @@ class GameUi < Gosu::Window
   end
 
   def select_path!
-    @current_move.enact(@current_unit, @game, @path)
+    @state_changes += @current_move.add_state_changes(@current_unit, @path, current_state)
     @selector_x, @selector_y = @current_unit.x, @current_unit.y
     unselect_unit!
   end
