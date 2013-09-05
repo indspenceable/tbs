@@ -1,5 +1,5 @@
 require 'gosu'
-require './board'
+require './game'
 
 # TODO this should all be encapsulated somewhere.
 def point_dist(x,y,x2,y2)
@@ -24,6 +24,12 @@ class Movement
     actor.x = point[0]
     actor.y = point[1]
   end
+  def max_path_length
+    5
+  end
+  def valid_on_path?(point, game)
+    game.open?(*point) && !game.unit_at(*point)
+  end
 end
 
 class MeleeAttack
@@ -39,7 +45,7 @@ class MeleeAttack
     end
   end
   def enact actor, game, target
-    puts "MeleeAttack#enact #{actor} attacked #{target}"
+    game.add_animation
   end
 end
 
@@ -177,7 +183,6 @@ class GameUi < Gosu::Window
             (u.y + (m+1)%2 * ((m/2)*2-1))*32,
             2
           )
-
           #TODO make this better
           if @current_move == u.moves[m]
             @effects[139].draw(
@@ -289,7 +294,10 @@ class GameUi < Gosu::Window
     if @path.include?(point)
       # shorten down to that point
       @path = @path[0,@path.index(point)+1]
-    elsif point_dist(*@path[-1], *point) == 1 && @game.open?(*point) && !@game.unit_at(*point)
+    elsif point_dist(*@path[-1], *point) == 1 &&
+      @current_move.valid_on_path?(point, @game) &&
+      @path.length <= @current_move.max_path_length
+
       @path << point
     end
   end
