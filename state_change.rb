@@ -38,15 +38,38 @@ module StateChange
     end
   end
 
-  class MeleeAttack < StateChange
+  class Attack < StateChange
     def initialize ss, uid, target_id
       @uid = uid
       @tuid = target_id
+      super(ss)
     end
     def enact(gs)
       u = gs.unit_by_id(@uid)
       t = gs.unit_by_id(@tuid)
-      t.take_damage(u)
+      t.hp -= 3
+    end
+  end
+
+  class Heal < StateChange
+    def initialize ss, uid, target_id
+      @uid = uid
+      @tuid = target_id
+      super(ss)
+    end
+    def enact(gs)
+      u = gs.unit_by_id(@uid)
+      t = gs.unit_by_id(@tuid)
+      t.hp += 3
+    end
+  end
+
+  class Defense < StateChange
+    def initialize ss, uid
+      @uid = uid
+      super(ss)
+    end
+    def enact(gs)
     end
   end
 end

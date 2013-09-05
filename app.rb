@@ -9,9 +9,6 @@ end
 def distance(u1,u2)
   (u1.x - u2.x).abs + (u1.y-u2.y).abs
 end
-def _unit_at(units,x,y)
-  units.find{|u| u.x == x && u.y == y}
-end
 
 class Movement
   def sprite
@@ -54,8 +51,7 @@ class MeleeAttack
   end
 
   def add_state_changes actor, target, starting_state
-    sc = MeleeAttack.new(gs, actor.uid, target.uid)
-    sc + sc.ending_state.passive_state_changes
+    [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
   end
 end
 
@@ -71,8 +67,8 @@ class Heal
       [u.x, u.y]
     end
   end
-  def enact(unit, game, target)
-    puts "heal #{target}"
+  def add_state_changes actor, target, starting_state
+    [StateChange::Heal.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
   end
 end
 
@@ -101,8 +97,8 @@ class Bow
     end
     _targets.map{|u| [u.x, u.y]}
   end
-  def enact(unit, game, target)
-    puts "Ranged attack! -> #{target}"
+  def add_state_changes actor, target, starting_state
+    [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
   end
 end
 
@@ -113,9 +109,8 @@ class Defend
   def targetted?
     false
   end
-  def enact(unit, game)
-    puts "DEFENDED #{unit}."
-    # This will add a buff to the unit, which will expire in 1 turn.
+  def add_state_changes actor, starting_state
+    [StateChange::Defense.new(starting_state, actor.uid)]
   end
 end
 
@@ -123,10 +118,11 @@ class Unit
   def sprite
     1
   end
-  attr_accessor :x, :y, :moves, :uid
+  attr_accessor :x, :y, :moves, :uid, :hp
   def initialize x,y, uid
     @x, @y = x, y
     @uid = uid
+    @hp = 20
     @moves = [
       MeleeAttack.new,
       Movement.new,
@@ -324,12 +320,12 @@ class GameUi < Gosu::Window
         @path_select_x, @path_select_y = @current_unit.x, @current_unit.y
       end
     else
-      @current_move.enact(@current_unit, current_state)
+      @state_changes += @current_move.add_state_changes(@current_unit, current_state)
       unselect_unit!
     end
   end
   def select_target!
-    @current_move.enact(@current_unit, current_state, @targets[@target_index])
+    @state_changes += @current_move.add_state_changes(@current_unit, @targets[@target_index], current_state)
     unselect_unit!
   end
 
