@@ -25,7 +25,7 @@ class GameUi < Gosu::Window
 
     @selector_x, @selector_y = 0,0
 
-    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP1))]
+    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP2))]
     current_state
 
     @current_action = :select_unit
@@ -139,9 +139,12 @@ class GameUi < Gosu::Window
         @font.draw(move.display_name, MAP_WIDTH, (FONT_SIZE+4)*index, 1, 1, 1, color)
       end
     else
-      unit = (@targets &&
+      unit = (@target_index &&
         current_state.can_see?(*@targets[@target_index], CURRENT_TEAM) &&
         current_state.unit_at(*@targets[@target_index])) ||
+        (@targets && @target_index.nil? &&
+          current_state.can_see?(@selector_x, @selector_y, CURRENT_TEAM) &&
+          current_state.unit_at(@selector_x, @selector_y))||
         (@current_action==:select_move &&
           @current_unit) ||
         (current_state.can_see?(@selector_x, @selector_y, CURRENT_TEAM) &&
@@ -211,7 +214,7 @@ class GameUi < Gosu::Window
           5
         )
       end
-      if @current_action == :select_target
+      if @current_action == :select_from_target_list
         @targets.each_with_index do |(_x,_y), i|
           x, y = _x-@camera_x, _y-@camera_y
           if i == @target_index
@@ -229,6 +232,29 @@ class GameUi < Gosu::Window
           end
         end
       end
+      if @current_action == :select_target
+        @targets.each_with_index do |(_x,_y), i|
+          x, y = _x-@camera_x, _y-@camera_y
+          if (_x == @selector_x) && (_y==@selector_y)
+            # @effects[173].draw(
+            #   x*32,
+            #   y*32,
+            #   3
+            # )
+          else
+            @effects[171].draw(
+              x*32,
+              y*32,
+              3
+            )
+          end
+        end
+        @effects[173].draw(
+          (@selector_x-@camera_x)*32,
+          (@selector_y-@camera_y)*32,
+          4
+        )
+      end
     end
     if @current_action == :select_unit && most_recent_state?
       @effects[123].draw((@selector_x-@camera_x)*32, (@selector_y-@camera_y)*32, 0)
@@ -245,9 +271,12 @@ class GameUi < Gosu::Window
       @target_index = nil
       @path_select_x, @path_select_y = nil, nil
       @path = nil
+      @old_select_x, @old_select_y = nil, nil
     end
   end
   def unselect_unit!
+    @selector_x = @old_select_x || @selector_x
+    @selector_y = @old_select_y || @selector_y
     @current_action = :select_unit
     @current_unit = nil
     @current_move =
@@ -259,12 +288,24 @@ class GameUi < Gosu::Window
   def select_move!
     return unless @current_move
     if @current_move.targetted?
-      if @current_move.targetted? == :select_from_targets
+      puts "targetted #{@current_move.targetted?}..."
+      if @current_move.targetted? == :select_from_target_list || @current_move.targetted? == :select_from_targets
+        puts "good..."
         @targets = @current_move.targets(@current_unit, current_state)
         # only move on if there are any targets...
         if @targets.any?
-          @current_action = :select_target
-          @target_index = 0
+          puts "TARGETS!"
+          if @current_move.targetted? == :select_from_target_list
+            @current_action = :select_from_target_list
+            @target_index = 0
+          else
+            puts "BOOM"
+            @old_select_x, @old_select_y = @selector_x, @selector_y
+            unless @targets.include?([@selector_x,@selector_y])
+              # @selector_x, @selector_y = @targets[0]
+            end
+            @current_action = :select_target
+          end
         else
           @targets = nil
         end
@@ -288,10 +329,18 @@ class GameUi < Gosu::Window
     @current_move = @current_unit.moves[(index+1) % (@current_unit.moves.size)]
   end
 
-  def select_target!
+  def select_target_from_list!
     add_state_changes! @current_move.add_state_changes(@current_unit, @targets[@target_index], current_state)
     unselect_unit!
   end
+
+  def select_target!
+    point = [@selector_x, @selector_y]
+    return unless @targets.include?(point)
+    add_state_changes! @current_move.add_state_changes(@current_unit, point, current_state)
+    unselect_unit!
+  end
+
   def prev_target!
     @target_index -= 1
     @target_index = @targets.size-1 if @target_index == -1
@@ -346,7 +395,8 @@ class GameUi < Gosu::Window
   def button_down(id)
     return exit if id == Gosu::KbEscape
 
-    if @current_action == :select_unit
+    case @current_action
+    when :select_unit, :select_target
       case id
       when buttons[:left]
         @selector_x -= 1
@@ -361,12 +411,19 @@ class GameUi < Gosu::Window
         @selector_y += 1
         scroll_camera_to_point([@selector_x, @selector_y])
       when buttons[:select]
-        select_unit!
+        if @current_action == :select_unit
+          select_unit!
+        else
+          select_target!
+        end
       when buttons[:cancel]
-        # no-op
-        puts :cancel
+        if @current_action == :select_unit
+          # no op
+        else
+          unselect_unit!
+        end
       end
-    elsif @current_action == :select_move
+    when :select_move
       case id
       when buttons[:left]
         # @current_move = @current_unit.moves[1] if @current_unit.moves[1]
@@ -383,18 +440,18 @@ class GameUi < Gosu::Window
       when buttons[:cancel]
         unselect_unit!
       end
-    elsif @current_action == :select_target
+    when :select_from_target_list
       case id
       when buttons[:left], buttons[:up]
         prev_target!
       when buttons[:right], buttons[:down]
         next_target!
       when buttons[:select]
-        select_target!
+        select_target_from_list!
       when buttons[:cancel]
         select_unit!
       end
-    elsif @current_action == :select_path
+    when :select_path
       case id
       when buttons[:left]
         @path_select_x -= 1

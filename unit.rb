@@ -80,6 +80,9 @@ class Wizard < Unit
     attack_power: 3,
     movement_range: 5,
     class_moves: [
+      # Fireball.new, # Burst damage, can hurt friendlys
+      # Glacier.new, # Blocks a space for a couple of turns. Damages adjacent folks
+      # Thunderbolt.new, # Hits in a line - can hurt friendlys
     ],
     sprite:45
 end

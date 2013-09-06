@@ -57,7 +57,7 @@ class MeleeAttack
   end
 
   def targetted?
-    :select_from_targets
+    :select_from_target_list
   end
 
   def initialize power
@@ -98,7 +98,7 @@ class Heal
     20
   end
   def targetted?
-    :select_from_targets
+    :select_from_target_list
   end
   def targets actor, game
     game.units.select{|u| distance(u, actor) <= 3 }.map do |u|
@@ -118,7 +118,7 @@ class Bow
     64
   end
     def targetted?
-    :select_from_targets
+    :select_from_target_list
   end
   def targets actor, game
     _targets = []
@@ -165,7 +165,7 @@ class Knockback
     57
   end
   def targetted?
-    :select_from_targets
+    :select_from_target_list
   end
   def targets actor, game
     game.units.select{|u| distance(u,actor) == 1 && u.team != actor.team }.map do |u|
