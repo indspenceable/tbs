@@ -5,10 +5,14 @@ class Unit
     @uid = uid
     @hp = max_hp
     @moves = [
-      MeleeAttack.new(attack_power),
+      attack_class.new(attack_power),
       *class_moves,
       Movement.new(movement_range)
     ]
+  end
+
+  def attack_class
+    MeleeAttack
   end
 
   def self.attrs hsh
@@ -22,11 +26,23 @@ end
 
 class Warrior < Unit
   attrs max_hp: 30,
-    attack_power: 5,
-    movement_range: 5,
+    attack_power: 7,
+    movement_range: 4,
     class_moves: [
       Knockback.new, # Push an opponent a few spaces.
       Defend.new, # for a few turns, damage shaving
     ],
-    sprite: 1
+    sprite: 8
+end
+
+class Assasin < Unit
+  attrs max_hp: 15,
+    attack_power: 3,
+    movement_range: 7,
+    class_moves: [
+      # Blink.new(3),
+      # ShadowMeld.new,
+    ],
+    attack_class: Assasinate,
+    sprite: 44
 end

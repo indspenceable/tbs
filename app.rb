@@ -76,6 +76,16 @@ class MeleeAttack
   end
 end
 
+class Assasinate < MeleeAttack
+  def add_state_changes actor, target, starting_state
+    if false
+      [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power*3)]
+    else
+      [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power)]
+    end
+  end
+end
+
 class Heal
   def sprite
     20
@@ -169,10 +179,12 @@ class GameUi < Gosu::Window
     @chars = Gosu::Image.load_tiles(self, 'characters.png', 32, 32, true)
     @selector_x, @selector_y = 0,0
 
+    classes = [Warrior, Assasin]
+
     (rand(50)+10).times.map do |i|
       x,y = rand(20),rand(15)
       unless starting_game_state.unit_at(x,y) || starting_game_state.blocked?(x,y)
-        starting_game_state.add_unit!(Warrior.new(x,y,i))
+        starting_game_state.add_unit!(classes.shuffle.shift.new(x,y,i))
       end
     end
 
