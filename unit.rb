@@ -45,8 +45,8 @@ class Warrior < Unit
 end
 
 class Assasin < Unit
-  attrs max_hp: 15,
-    attack_power: 3,
+  attrs max_hp: 20,
+    attack_power: 4,
     movement_range: 7,
     class_moves: [
       Blink.new(3),
@@ -54,4 +54,31 @@ class Assasin < Unit
     ],
     attack_class: Assasinate,
     sprite: 44
+end
+
+class Cleric < Unit
+  attrs max_hp: 25,
+    attack_power: 4,
+    movement_range: 5,
+    class_moves: [
+    ],
+    sprite:38
+end
+
+class Cultist < Unit
+  attrs max_hp: 20,
+    attack_power: 5,
+    movement_range: 5,
+    class_moves: [
+    ],
+    sprite:39
+end
+
+class Wizard < Unit
+  attrs max_hp: 15,
+    attack_power: 3,
+    movement_range: 5,
+    class_moves: [
+    ],
+    sprite:45
 end

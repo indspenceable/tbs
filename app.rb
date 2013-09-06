@@ -29,7 +29,7 @@ class GameUi < Gosu::Window
 
     @selector_x, @selector_y = 0,0
 
-    classes = [Warrior, Assasin]
+    classes = [Warrior, Assasin, Cleric, Cultist, Wizard]
 
     16.times.map do |i|
       x,y = rand(20),rand(15)
