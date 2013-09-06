@@ -11,39 +11,22 @@ UI_WIDTH = 160
 
 FONT_SIZE = 16
 
+CURRENT_TEAM = 1  #todo make this go away; but at least using a constant for
+                  # now will make it easier to refactor later.
+
 class GameUi < Gosu::Window
   def initialize
     super(640+UI_WIDTH,480,false)
 
-
-    starting_game_state = Game.new(20,15) do |x,y|
-      rand(3) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
-    end
-
-
     @tiles = Gosu::Image.load_tiles(self, 'tiles.png', 32, 32, true)
     @effects = Gosu::Image.load_tiles(self, 'effects.png', 32, 32, true)
     @chars = Gosu::Image.load_tiles(self, 'characters.png', 32, 32, true)
-
     @font = Gosu::Font.new(self, "courier", FONT_SIZE)
 
     @selector_x, @selector_y = 0,0
 
-    classes = [Warrior, Assasin, Cleric, Cultist, Wizard]
-
-    16.times.map do |i|
-      x,y = rand(20),rand(15)
-      team = i%2
-      while starting_game_state.unit_at(x,y) || starting_game_state.blocked?(x,y)
-        x,y = rand(20),rand(15)
-      end
-
-      starting_game_state.add_unit!(classes.shuffle.shift.new(x, y, i, team))
-    end
-
-    @state_changes = [StateChange::StartGame.new(starting_game_state)]
+    @state_changes = [StateChange::StartGame.new(Game.seeded(20,15,2,2))]
     current_state
-
 
     @current_action = :select_unit
     @current_unit = nil
@@ -90,7 +73,6 @@ class GameUi < Gosu::Window
     end
     return @state
 
-
     @state_count ||= -1
     return @state if @state_count < @state_changes.length ||
       (@state && !can_update_state?)
@@ -109,7 +91,7 @@ class GameUi < Gosu::Window
     current_state.each_with_x_y do |tile, x, y|
       @tiles[tiles_to_sprite[tile]].draw(x*32, y*32, 0)
       # draw fog
-      if !current_state.can_see?(x,y,0)
+      if !current_state.can_see?(x,y,CURRENT_TEAM)
         @effects[172+2+16].draw(x*32, y*32, 0.5, 1, 1, ALPHA_COLOR)
       end
     end
@@ -125,7 +107,7 @@ class GameUi < Gosu::Window
 
   def draw_units
     current_state.units.each do |u|
-      next unless current_state.can_see?(u.x, u.y, 0)
+      next unless current_state.can_see?(u.x, u.y, CURRENT_TEAM)
       @chars[u.sprite].draw(u.x*32, u.y*32, 1)
       @effects[3+2*u.team].draw_as_quad(u.x*32, u.y*32, Gosu::Color::WHITE,
         u.x*32, u.y*32 + 8, Gosu::Color::WHITE,
@@ -150,11 +132,11 @@ class GameUi < Gosu::Window
       end
     else
       unit = (@targets &&
-        current_state.can_see?(*@targets[@target_index], 0) &&
+        current_state.can_see?(*@targets[@target_index], CURRENT_TEAM) &&
         current_state.unit_at(*@targets[@target_index])) ||
         (@current_action==:select_move &&
           @current_unit) ||
-        (current_state.can_see?(@selector_x, @selector_y, 0) &&
+        (current_state.can_see?(@selector_x, @selector_y, CURRENT_TEAM) &&
           current_state.unit_at(@selector_x, @selector_y))
 
       if most_recent_state? && unit
@@ -245,7 +227,7 @@ class GameUi < Gosu::Window
 
   def select_unit!
     u = current_state.unit_at(@selector_x, @selector_y)
-    if u && u.team == 0
+    if u && u.team == CURRENT_TEAM
       @current_action = :select_move
       @current_unit = u
       @current_move = @current_unit.moves[0]
@@ -322,7 +304,7 @@ class GameUi < Gosu::Window
       # shorten down to that point
       @path = @path[0,@path.index(point)+1]
     elsif point_dist(*@path[-1], *point) == 1 &&
-      @current_move.valid_on_path?(point, current_state) &&
+      @current_move.valid_on_path?(point, current_state, CURRENT_TEAM) &&
       @path.length <= @current_move.max_path_length
 
       @path << point

@@ -83,3 +83,30 @@ class Wizard < Unit
     ],
     sprite:45
 end
+
+class Rogue < Unit
+  attrs max_hp: 20,
+    attack_power: 4,
+    movement_range: 7,
+    class_moves: [
+    ],
+    sprite:35
+end
+
+class SlimeMonster < Unit
+  attrs max_hp: 30,
+    attack_power: 4,
+    movement_range: 4,
+    class_moves: [
+    ],
+    sprite: 178
+end
+
+class Ent < Unit
+  attrs max_hp: 40,
+    attack_power: 6,
+    movement_range: 3,
+    class_moves: [
+    ],
+    sprite: 183
+end

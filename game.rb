@@ -3,15 +3,72 @@ require './permissive_fov'
 class Game
   attr_reader :units
   include PermissiveFieldOfView
-  def initialize(x,y)
-    @width, @height = x, y
-    @map = Array.new(20) do
-      Array.new(15) do
+  def initialize(w,h)
+    @width, @height = w, h
+    @map = Array.new(20) do |x|
+      Array.new(15) do |y|
         yield(x,y)
       end
     end
     @units =[]
   end
+
+  MAP1 = <<-EOS
+    xxxxxxxxxxxxxxxxxxxx
+    xx......xxxxxxxxxxxx
+    xx...............xxx
+    xx..xxxx.........xxx
+    xx..xxxxxxxxxxx..xxx
+    xx..xxxxxxxxxxx..xxx
+    xx......xxxxxxx..xxx
+    xxxxxxx...........xx
+    xxxxxxxxxxxxx.....xx
+    xxxxxxxxxxxxx.....xx
+    xx................xx
+    xx................xx
+    xx....xxxxxxx.....xx
+    xx....xxxxxxxxxxxxxx
+    xxxxxxxxxxxxxxxxxxxx
+  EOS
+
+  MAP2 = <<-EOS
+    xxxxxxxxxxxxxxxxxxxx
+    x..................x
+    x..................x
+    x..xxxxxxxxxxxxxx..x
+    x..xxxxx....xxxxx..x
+    x..xxxxx....xxxxx..x
+    x...........xxxxx..x
+    x..xxxxx....xxxxx..x
+    x..xxxxx....xxxxx..x
+    x..xxxxxx..xxxxxx..x
+    x..xxxxxx..xxxxxx..x
+    x.....xx....xx.....x
+    x.....xx...........x
+    x.....xx....xx.....x
+    xxxxxxxxxxxxxxxxxxxx
+  EOS
+
+  def self.seeded(w, h, units_per_team, teams)
+    gs = Game.new(w,h) do |x,y|
+      #rand(3) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
+      c = MAP2.gsub(/[ \n]/, '')[y*w + x]
+      c == 'x' ? :wall : c == '.' ? :floor : :slime
+    end
+    classes = [Warrior, Assasin, Cleric, Cultist, Wizard, Rogue, SlimeMonster, Ent]
+
+    (units_per_team*teams).times.map do |i|
+      x,y = rand(w),rand(h)
+      team = i%teams
+      while gs.unit_at(x,y) || gs.blocked?(x,y)
+        x,y = rand(w),rand(h)
+      end
+      gs.add_unit!(classes.shuffle.shift.new(x, y, i, team))
+    end
+
+    gs
+  end
+
   def add_unit!(unit)
     raise "No id" unless unit.uid
     raise "Unit with that id already." if unit_by_id(unit.uid)

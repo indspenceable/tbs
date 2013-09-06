@@ -42,8 +42,8 @@ class Movement
     @max_path_length
   end
 
-  def valid_on_path?(point, game)
-    game.open?(*point) && !(game.unit_at(*point) && game.can_see?(*point, 0))
+  def valid_on_path?(point, game, team)
+    game.open?(*point) && !(game.unit_at(*point) && game.can_see?(*point, team))
   end
 
   def display_name
