@@ -190,6 +190,27 @@ class Knockback
     "Knockback"
   end
 end
+class BullRush < Knockback
+  def add_state_changes actor, target, starting_state
+    target_unit = starting_state.unit_at(*target)
+    sx, sy = target_unit.x, target_unit.y
+    state_changes = [
+      StateChange::Knockback.new(starting_state, actor.uid, starting_state.unit_at(*target).uid),
+    ]
+    ending_state = state_changes.last.ending_state
+    target_unit = ending_state.unit_by_id(target_unit.uid)
+    nx, ny = target_unit.x, target_unit.y
+    if nx != sx || ny != sy
+      state_changes += ending_state.terrain_state_changes(target_unit.uid, [nx, ny])
+      state_changes << StateChange::MoveUnit.new(state_changes.last.ending_state, actor.uid, [sx,sy])
+    end
+    state_changes
+  end
+
+  def display_name
+    "Bull Rush"
+  end
+end
 
 class Blink
   def initialize range

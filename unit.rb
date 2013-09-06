@@ -35,18 +35,19 @@ end
 
 class Warrior < Unit
   attrs max_hp: 30,
-    attack_power: 7,
+    attack_power: 5,
     movement_range: 4,
     class_moves: [
       Knockback.new, # Push an opponent a few spaces.
-      Defend.new, # for a few turns, damage shaving
+      BullRush.new, # Like knockback, but also move the user.
+      Defend.new, # for a few turns, damage shaving.
     ],
     sprite: 8
 end
 
 class Assasin < Unit
   attrs max_hp: 20,
-    attack_power: 4,
+    attack_power: 3,
     movement_range: 7,
     class_moves: [
       Blink.new(3),
