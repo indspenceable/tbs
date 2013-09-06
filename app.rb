@@ -5,19 +5,28 @@ require './actions'
 require './unit'
 ALPHA_COLOR = Gosu::Color.argb(0x66ffffff)
 
+MAP_WIDTH = 640
+MAP_HEIGHT = 480
+UI_WIDTH = 160
+
+FONT_SIZE = 16
+
 class GameUi < Gosu::Window
   def initialize
-    super(640,480,false)
+    super(640+UI_WIDTH,480,false)
 
 
     starting_game_state = Game.new(20,15) do |x,y|
-      rand(2) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
+      rand(3) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
     end
 
 
     @tiles = Gosu::Image.load_tiles(self, 'tiles.png', 32, 32, true)
     @effects = Gosu::Image.load_tiles(self, 'effects.png', 32, 32, true)
     @chars = Gosu::Image.load_tiles(self, 'characters.png', 32, 32, true)
+
+    @font = Gosu::Font.new(self, "courier", FONT_SIZE)
+
     @selector_x, @selector_y = 0,0
 
     classes = [Warrior, Assasin]
@@ -96,10 +105,7 @@ class GameUi < Gosu::Window
     {:floor => 12, :wall => 5, :slime => 66}
   end
 
-  def draw
-    @count ||= 3
-    @count += 1
-
+  def draw_map
     current_state.each_with_x_y do |tile, x, y|
       @tiles[tiles_to_sprite[tile]].draw(x*32, y*32, 0)
       # draw fog
@@ -107,6 +113,17 @@ class GameUi < Gosu::Window
         @effects[172+2+16].draw(x*32, y*32, 0.5, 1, 1, ALPHA_COLOR)
       end
     end
+  end
+
+  def draw
+    @count ||= 3
+    @count += 1
+    draw_map
+    draw_units
+    draw_doodads
+  end
+
+  def draw_units
     current_state.units.each do |u|
       next unless current_state.can_see?(u.x, u.y, 0)
       @chars[u.sprite].draw(u.x*32, u.y*32, 1)
@@ -115,24 +132,63 @@ class GameUi < Gosu::Window
         u.x*32 + 8, u.y*32 + 8, Gosu::Color::WHITE,
         u.x*32 + 8, u.y*32, Gosu::Color::WHITE,
         1.5,)
-      if u == @current_unit && @current_action == :select_move
-        4.times do |m|
-          next unless u.moves[m]
-          @effects[u.moves[m].sprite].draw(
-            (u.x + (m+0)%2 * ((m/2)*2-1))*32,
-            (u.y + (m+1)%2 * ((m/2)*2-1))*32,
-            2
-          )
-          #TODO make this better
-          if @current_move == u.moves[m]
-            @effects[139].draw(
-              (u.x + (m+0)%2 * ((m/2)*2-1))*32,
-              (u.y + (m+1)%2 * ((m/2)*2-1))*32,
-              2
-            )
-          end
-        end
+    end
+  end
+  def draw_doodads
+    if @current_action == :select_move
+      # draw a box where the menu is going to go.
+
+
+      draw_quad(
+        MAP_WIDTH, 0, Gosu::Color::BLACK,
+        MAP_WIDTH+UI_WIDTH, 0, Gosu::Color::BLACK,
+        MAP_WIDTH+UI_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
+        MAP_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
+        0
+      )
+
+      @current_unit.moves.each_with_index do |move, index|
+        color = @current_move ==  move ? Gosu::Color::RED : Gosu::Color::WHITE
+        @font.draw(move.display_name, MAP_WIDTH, (FONT_SIZE+4)*index, 1, 1, 1, color)
       end
+
+      # BOX MENU
+      # height_of_box = 16*5+8*4
+      # width_of_box = 120
+
+      # top_of_box = @current_unit.y * 32
+      # if @current_unit.y * 32 + height_of_box > 480
+      #   top_of_box -= height_of_box - 32
+      # end
+      # left_of_box = (@current_unit.x+1)*32
+      # if left_of_box + width_of_box > 640
+      #   left_of_box = @current_unit.x*32 - width_of_box
+      # end
+
+      # draw_quad(
+      #   left_of_box,              top_of_box,               Gosu::Color::RED,
+      #   left_of_box+width_of_box, top_of_box,               Gosu::Color::RED,
+      #   left_of_box+width_of_box, top_of_box+height_of_box, Gosu::Color::RED,
+      #   left_of_box,              top_of_box+height_of_box, Gosu::Color::RED,
+      #   10)
+
+      # OLD STYLE
+      # 4.times do |m|
+      #   next unless @current_unit.moves[m]
+      #   @effects[ @current_unit.moves[m].sprite].draw(
+      #     ( @current_unit.x + (m+0)%2 * ((m/2)*2-1))*32,
+      #     ( @current_unit.y + (m+1)%2 * ((m/2)*2-1))*32,
+      #     2
+      #   )
+      #   #TODO make this better
+      #   if @current_move ==  @current_unit.moves[m]
+      #     @effects[139].draw(
+      #       ( @current_unit.x + (m+0)%2 * ((m/2)*2-1))*32,
+      #       ( @current_unit.y + (m+1)%2 * ((m/2)*2-1))*32,
+      #       2
+      #     )
+      #   end
+      # end
     end
 
     if most_recent_state?
@@ -178,7 +234,7 @@ class GameUi < Gosu::Window
     if u && u.team == 0
       @current_action = :select_move
       @current_unit = u
-      @current_move = nil
+      @current_move = @current_unit.moves[0]
       @targets = nil
       @target_index = nil
       @path_select_x, @path_select_y = nil, nil
@@ -217,11 +273,19 @@ class GameUi < Gosu::Window
     end
   end
 
+  def prev_move!
+    index = @current_unit.moves.index(@current_move)
+    @current_move = @current_unit.moves[(index-1) % (@current_unit.moves.size)]
+  end
+  def next_move!
+    index = @current_unit.moves.index(@current_move)
+    @current_move = @current_unit.moves[(index+1) % (@current_unit.moves.size)]
+  end
+
   def select_target!
     add_state_changes! @current_move.add_state_changes(@current_unit, @targets[@target_index], current_state)
     unselect_unit!
   end
-
   def prev_target!
     @target_index -= 1
     @target_index = @targets.size-1 if @target_index == -1
@@ -286,13 +350,15 @@ class GameUi < Gosu::Window
     elsif @current_action == :select_move
       case id
       when buttons[:left]
-        @current_move = @current_unit.moves[1] if @current_unit.moves[1]
+        # @current_move = @current_unit.moves[1] if @current_unit.moves[1]
       when buttons[:right]
-        @current_move = @current_unit.moves[3] if @current_unit.moves[3]
+        # @current_move = @current_unit.moves[3] if @current_unit.moves[3]
       when buttons[:up]
-        @current_move = @current_unit.moves[0] if @current_unit.moves[0]
+        prev_move!
+        # @current_move = @current_unit.moves[0] if @current_unit.moves[0]
       when buttons[:down]
-        @current_move = @current_unit.moves[2] if @current_unit.moves[2]
+        # @current_move = @current_unit.moves[2] if @current_unit.moves[2]
+        next_move!
       when buttons[:select]
         select_move!
       when buttons[:cancel]

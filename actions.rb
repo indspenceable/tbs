@@ -7,12 +7,15 @@ class Movement
   def sprite
     58
   end
+
   def initialize mpl
     @max_path_length = mpl
   end
+
   def targetted?
     :path
   end
+
   def add_state_changes actor, path, starting_state
     gs = starting_state
     state_changes = []
@@ -34,11 +37,17 @@ class Movement
     end
     state_changes
   end
+
   def max_path_length
     @max_path_length
   end
+
   def valid_on_path?(point, game)
     game.open?(*point) && !(game.unit_at(*point) && game.can_see?(*point, 0))
+  end
+
+  def display_name
+    "Move"
   end
 end
 
@@ -64,6 +73,10 @@ class MeleeAttack
   def add_state_changes actor, target, starting_state
     [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power)]
   end
+
+  def display_name
+    "Attack"
+  end
 end
 
 class Assasinate < MeleeAttack
@@ -75,6 +88,10 @@ class Assasinate < MeleeAttack
       puts "Loom :("
       [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power*3)]
     end
+  end
+
+  def display_name
+    "Assasinate"
   end
 end
 
@@ -92,6 +109,9 @@ class Heal
   end
   def add_state_changes actor, target, starting_state
     [StateChange::Heal.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
+  end
+  def display_name
+    "Heal"
   end
 end
 
@@ -123,6 +143,9 @@ class Bow
   def add_state_changes actor, target, starting_state
     [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
   end
+  def display_name
+    "Bow"
+  end
 end
 
 class Defend
@@ -134,6 +157,9 @@ class Defend
   end
   def add_state_changes actor, starting_state
     [StateChange::Defense.new(starting_state, actor.uid)]
+  end
+  def display_name
+    "Defensive Stance"
   end
 end
 
@@ -160,5 +186,9 @@ class Knockback
     nx, ny = target_unit.x, target_unit.y
     state_changes += ending_state.terrain_state_changes(target_unit.uid, [nx, ny]) if nx != sx || ny != sy
     state_changes
+  end
+
+  def display_name
+    "Knockback"
   end
 end
