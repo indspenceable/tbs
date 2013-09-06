@@ -94,7 +94,7 @@ class Game
   end
 
   def block_movement?(uid, point)
-    unit_at(*point)
+    unit_at(*point) || blocked?(*point)
     # or, ice cube! or something.
   end
 end

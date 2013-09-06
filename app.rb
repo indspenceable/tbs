@@ -157,10 +157,16 @@ class Knockback
     end
   end
   def add_state_changes actor, target, starting_state
+    target_unit = starting_state.unit_at(*target)
+    sx, sy = target_unit.x, target_unit.y
     state_changes = [
       StateChange::Knockback.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)
     ]
-    state_changes += state_changes.last.ending_state.terrain_state_changes(actor.uid, point)
+    ending_state = state_changes.last.ending_state
+    target_unit = ending_state.unit_by_id(target_unit.uid)
+    nx, ny = target_unit.x, target_unit.y
+    state_changes += ending_state.terrain_state_changes(target_unit.uid, [nx, ny]) if nx != sx || ny != sy
+    state_changes
   end
 end
 

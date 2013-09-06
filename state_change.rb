@@ -72,9 +72,8 @@ module StateChange
     def enact(gs)
       u = gs.unit_by_id(@uid)
       t = gs.unit_by_id(@tuid)
-      #TODO make sure that unit can move to that location.
-      t.x += (t.x - u.x)
-      t.y += (t.y - u.y)
+      new_point = [t.x + (t.x-u.x), t.y + (t.y - u.y)]
+      t.x, t.y = new_point unless gs.block_movement?(@tuid, new_point)
       t.hp -= 3
     end
   end
