@@ -126,7 +126,6 @@ class Bow
       x = (i+0)%2 * ((i/2)*2-1)
       y = (i+1)%2 * ((i/2)*2-1)
       5.times do |j|
-        puts "Looking at #{actor.x + x*(j+1)}, #{actor.y + y*(j+1)}"
         u = game.unit_at(actor.x + x*(j+1), actor.y + y*(j+1))
         if u
           _targets << u if u.team != actor.team
@@ -221,7 +220,6 @@ class Blink
   end
   def targets actor, game
     targets = []
-    puts "ACTOR IS #{actor}"
     (actor.y-@range).upto(actor.y+@range).each do |y|
       targets += (actor.x-@range).upto(actor.x+@range).map do |x|
         [x,y] unless !game.can_see?(x,y,actor.team) || game.blocked?(x,y) || game.unit_at(x,y)

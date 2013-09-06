@@ -25,11 +25,14 @@ class GameUi < Gosu::Window
 
     @selector_x, @selector_y = 0,0
 
-    @state_changes = [StateChange::StartGame.new(Game.seeded(20,15,2,2))]
+    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP1))]
     current_state
 
     @current_action = :select_unit
     @current_unit = nil
+
+    @camera_x = 0
+    @camera_y = 0
   end
 
   def buttons
@@ -88,10 +91,12 @@ class GameUi < Gosu::Window
   end
 
   def draw_map
-    current_state.each_with_x_y do |tile, x, y|
+    current_state.each_with_x_y do |tile, _x, _y|
+      x, y = _x-@camera_x, _y-@camera_y
+      next unless x < 20 && x >= 0 && y < 15 && y >= 0
       @tiles[tiles_to_sprite[tile]].draw(x*32, y*32, 0)
       # draw fog
-      if !current_state.can_see?(x,y,CURRENT_TEAM)
+      if !current_state.can_see?(_x,_y,CURRENT_TEAM)
         @effects[172+2+16].draw(x*32, y*32, 0.5, 1, 1, ALPHA_COLOR)
       end
     end
@@ -108,15 +113,18 @@ class GameUi < Gosu::Window
   def draw_units
     current_state.units.each do |u|
       next unless current_state.can_see?(u.x, u.y, CURRENT_TEAM)
-      @chars[u.sprite].draw(u.x*32, u.y*32, 1)
-      @effects[3+2*u.team].draw_as_quad(u.x*32, u.y*32, Gosu::Color::WHITE,
-        u.x*32, u.y*32 + 8, Gosu::Color::WHITE,
-        u.x*32 + 8, u.y*32 + 8, Gosu::Color::WHITE,
-        u.x*32 + 8, u.y*32, Gosu::Color::WHITE,
+      x, y = u.x-@camera_x, u.y-@camera_y
+
+      @chars[u.sprite].draw(x*32, y*32, 1)
+      @effects[3+2*u.team].draw_as_quad(x*32, y*32, Gosu::Color::WHITE,
+        x*32, y*32 + 8, Gosu::Color::WHITE,
+        x*32 + 8, y*32 + 8, Gosu::Color::WHITE,
+        x*32 + 8, y*32, Gosu::Color::WHITE,
         1.5,)
     end
   end
   def draw_doodads
+    # this goes in DRAW UI BOX
     if @current_action == :select_move
       # draw a box where the menu is going to go.
       draw_quad(
@@ -189,7 +197,8 @@ class GameUi < Gosu::Window
 
     if most_recent_state?
       if @current_action == :select_path
-        @path.each do |x,y|
+        @path.each do |_x,_y|
+          x, y = _x-@camera_x, _y-@camera_y
           @effects[173].draw(
             x*32,
             y*32,
@@ -197,14 +206,15 @@ class GameUi < Gosu::Window
           )
         end
         @effects[171].draw(
-          @path_select_x*32,
-          @path_select_y*32,
+          (@path_select_x-@camera_x)*32,
+          (@path_select_y-@camera_y)*32,
           5
         )
       end
       if @current_action == :select_target
-        @targets.each_with_index do |(x,y), i|
-           if i == @target_index
+        @targets.each_with_index do |(_x,_y), i|
+          x, y = _x-@camera_x, _y-@camera_y
+          if i == @target_index
             @effects[173].draw(
               x*32,
               y*32,
@@ -221,7 +231,7 @@ class GameUi < Gosu::Window
       end
     end
     if @current_action == :select_unit && most_recent_state?
-      @effects[123].draw(@selector_x*32, @selector_y*32, 0)
+      @effects[123].draw((@selector_x-@camera_x)*32, (@selector_y-@camera_y)*32, 0)
     end
   end
 
@@ -298,8 +308,17 @@ class GameUi < Gosu::Window
     (x-x2).abs + (y-y2).abs
   end
 
+  def scroll_camera_to_point(p)
+    x,y = p
+    @camera_x -= 1 while @camera_x > x
+    @camera_x += 1 while @camera_x < (x-19)
+    @camera_y -= 1 while @camera_y > y
+    @camera_y += 1 while @camera_y < (y-14)
+  end
+
   def update_path!
     point = [@path_select_x, @path_select_y]
+    scroll_camera_to_point(point)
     if @path.include?(point)
       # shorten down to that point
       @path = @path[0,@path.index(point)+1]
@@ -331,12 +350,16 @@ class GameUi < Gosu::Window
       case id
       when buttons[:left]
         @selector_x -= 1
+        scroll_camera_to_point([@selector_x, @selector_y])
       when buttons[:right]
         @selector_x += 1
+        scroll_camera_to_point([@selector_x, @selector_y])
       when buttons[:up]
         @selector_y -= 1
+        scroll_camera_to_point([@selector_x, @selector_y])
       when buttons[:down]
         @selector_y += 1
+        scroll_camera_to_point([@selector_x, @selector_y])
       when buttons[:select]
         select_unit!
       when buttons[:cancel]

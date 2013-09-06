@@ -5,8 +5,8 @@ class Game
   include PermissiveFieldOfView
   def initialize(w,h)
     @width, @height = w, h
-    @map = Array.new(20) do |x|
-      Array.new(15) do |y|
+    @map = Array.new(w) do |x|
+      Array.new(h) do |y|
         yield(x,y)
       end
     end
@@ -14,47 +14,58 @@ class Game
   end
 
   MAP1 = <<-EOS
-    xxxxxxxxxxxxxxxxxxxx
-    xx......xxxxxxxxxxxx
-    xx...............xxx
-    xx..xxxx.........xxx
-    xx..xxxxxxxxxxx..xxx
-    xx..xxxxxxxxxxx..xxx
-    xx......xxxxxxx..xxx
-    xxxxxxx...........xx
-    xxxxxxxxxxxxx.....xx
-    xxxxxxxxxxxxx.....xx
-    xx................xx
-    xx................xx
-    xx....xxxxxxx.....xx
-    xx....xxxxxxxxxxxxxx
-    xxxxxxxxxxxxxxxxxxxx
-  EOS
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xx......xxxxxxx..........................x
+xx...............xxx.....................x
+xx..xxxx.........xxxxxxxxxxxxxxxxx...xxxxx
+xx..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxx
+xx..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxx
+xx......xxxxxxx..xxx.....................x
+xxxxxxx...........xx...xxxxxxxxxxxxxx....x
+xxxxxxxxxxxxx.....xx...xxxxxxxxxxxxxx....x
+xxxxxxxxxxxxx.....xx...xxxxxxxxxxxxxx....x
+xx................xx...xxxxxxxxxxxxxx....x
+xx................xx...xxxxxxxxxxxxxx....x
+xx....xxxxxxx..........xxxxxxxxxx........x
+xx....xxxxxxx..xx......xxxxxxxxxx........x
+xxxx...xxxxxx..xxxxxxxxxxxxxxxxxx.....xxxx
+xxxx...xxxxxx..xxxxxxxxxxxxxxxxxx.....xxxx
+xxxx............xxxxxxxxxxxxxxxxx.....xxxx
+xxxxxxxxx...xxxxxxxxxxxxxxxxxxxxx.....xxxx
+xxxxxxxxx...xxxxxxxxxxxxxxxxxxxxx.....xxxx
+xxxxxxxxx.............................xxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.....xxxx
+EOS
 
   MAP2 = <<-EOS
-    xxxxxxxxxxxxxxxxxxxx
-    x..................x
-    x..................x
-    x..xxxxxxxxxxxxxx..x
-    x..xxxxx....xxxxx..x
-    x..xxxxx....xxxxx..x
-    x...........xxxxx..x
-    x..xxxxx....xxxxx..x
-    x..xxxxx....xxxxx..x
-    x..xxxxxx..xxxxxx..x
-    x..xxxxxx..xxxxxx..x
-    x.....xx....xx.....x
-    x.....xx...........x
-    x.....xx....xx.....x
-    xxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxx
+x..................x
+x..................x
+x..xxxxxxxxxxxxxx..x
+x..xxxxx....xxxxx..x
+x..xxxxx....xxxxx..x
+x...........xxxxx..x
+x..xxxxx....xxxxx..x
+x..xxxxx....xxxxx..x
+x..xxxxxx..xxxxxx..x
+x..xxxxxx..xxxxxx..x
+x.....xx....xx.....x
+x.....xx...........x
+x.....xx....xx.....x
+xxxxxxxxxxxxxxxxxxxx
   EOS
 
-  def self.seeded(w, h, units_per_team, teams)
+  def self.seeded(units_per_team, teams, map)
+    w = map.split("\n").first.length
+    map = map.gsub(/[ \n]/, '')
+    h = map.length/w
+
     gs = Game.new(w,h) do |x,y|
       #rand(3) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
-      c = MAP2.gsub(/[ \n]/, '')[y*w + x]
+      c = map[y*w + x]
       c == 'x' ? :wall : c == '.' ? :floor : :slime
     end
+
     classes = [Warrior, Assasin, Cleric, Cultist, Wizard, Rogue, SlimeMonster, Ent]
 
     (units_per_team*teams).times.map do |i|
@@ -124,6 +135,7 @@ class Game
   end
 
   def blocked?(x,y)
+    puts "LOOKING AT #{x} #{y}"
     return true if x < 0 || x >= @width || y < 0 || y >= @height
     @map[x][y] == :wall
   end
