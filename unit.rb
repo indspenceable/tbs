@@ -1,9 +1,10 @@
 class Unit
-  attr_accessor :x, :y, :moves, :uid, :hp
-  def initialize x,y, uid
+  attr_accessor :x, :y, :moves, :uid, :hp, :team
+  def initialize x,y, uid, team
     @x, @y = x, y
     @uid = uid
     @hp = max_hp
+    @team = team
     @moves = [
       attack_class.new(attack_power),
       *class_moves,
@@ -13,6 +14,10 @@ class Unit
 
   def attack_class
     MeleeAttack
+  end
+
+  def sight_range
+    5
   end
 
   def self.attrs hsh

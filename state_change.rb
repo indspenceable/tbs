@@ -22,8 +22,18 @@ module StateChange
       super(ss)
     end
     def enact(gs)
+      gs.calculate_los!
     end
   end
+  class Blocked < StateChange
+    def initialize ss, uid
+      super(ss)
+    end
+    def enact(gs)
+      gs.calculate_los!
+    end
+  end
+
 
   # Move a unit to a space
   class MoveUnit < StateChange
@@ -35,6 +45,7 @@ module StateChange
     def enact(gs)
       u = gs.unit_by_id(@uid)
       u.x, u.y = @point
+      gs.calculate_los!
     end
   end
 
@@ -108,6 +119,7 @@ module StateChange
     end
     def enact(gs)
       gs.remove_unit_by_id!(@uid)
+      gs.calculate_los!
     end
   end
 end

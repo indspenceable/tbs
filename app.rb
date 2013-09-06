@@ -2,6 +2,7 @@ require 'gosu'
 require './game'
 require './state_change'
 
+ALPHA_COLOR = Gosu::Color.argb(0x66ffffff)
 
 # TODO this should all be encapsulated somewhere.
 def point_dist(x,y,x2,y2)
@@ -36,9 +37,7 @@ class Movement
           gs = state_changes.last.ending_state
           state_changes += gs.terrain_state_changes(actor.uid, point)
           gs = state_changes.last.ending_state
-          if gs.unit_by_id(actor.uid).hp < 0
-            throw(:interrupt_movement)
-          end
+          throw(:interrupt_movement) if gs.unit_by_id(actor.uid).hp < 0
         end
       end
     end
@@ -48,7 +47,7 @@ class Movement
     @max_path_length
   end
   def valid_on_path?(point, game)
-    game.open?(*point) && !game.unit_at(*point)
+    game.open?(*point) && !(game.unit_at(*point) && game.can_see?(*point, 0))
   end
 end
 
@@ -66,7 +65,7 @@ class MeleeAttack
   end
 
   def targets actor, game
-    game.units.select{|u| distance(u,actor) == 1 }.map do |u|
+    game.units.select{|u| distance(u,actor) == 1 && u.team != actor.team }.map do |u|
       [u.x, u.y]
     end
   end
@@ -119,7 +118,7 @@ class Bow
         puts "Looking at #{actor.x + x*(j+1)}, #{actor.y + y*(j+1)}"
         u = game.unit_at(actor.x + x*(j+1), actor.y + y*(j+1))
         if u
-          _targets << u
+          _targets << u if u.team != actor.team
           break
         elsif game.blocked?(actor.x + x*(j+1), actor.y + y*(j+1))
           break
@@ -153,12 +152,15 @@ class Knockback
     :select_from_targets
   end
   def targets actor, game
-    game.units.select{|u| distance(u,actor) == 1 }.map do |u|
+    game.units.select{|u| distance(u,actor) == 1 && u.team != actor.team }.map do |u|
       [u.x, u.y]
     end
   end
   def add_state_changes actor, target, starting_state
-    [StateChange::Knockback.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
+    state_changes = [
+      StateChange::Knockback.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)
+    ]
+    state_changes += state_changes.last.ending_state.terrain_state_changes(actor.uid, point)
   end
 end
 
@@ -170,7 +172,7 @@ class GameUi < Gosu::Window
 
 
     starting_game_state = Game.new(20,15) do |x,y|
-      rand(3) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
+      rand(2) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
     end
 
 
@@ -181,11 +183,14 @@ class GameUi < Gosu::Window
 
     classes = [Warrior, Assasin]
 
-    (rand(50)+10).times.map do |i|
+    16.times.map do |i|
       x,y = rand(20),rand(15)
-      unless starting_game_state.unit_at(x,y) || starting_game_state.blocked?(x,y)
-        starting_game_state.add_unit!(classes.shuffle.shift.new(x,y,i))
+      team = i%2
+      while starting_game_state.unit_at(x,y) || starting_game_state.blocked?(x,y)
+        x,y = rand(20),rand(15)
       end
+
+      starting_game_state.add_unit!(classes.shuffle.shift.new(x, y, i, team))
     end
 
     @state_changes = [StateChange::StartGame.new(starting_game_state)]
@@ -216,8 +221,8 @@ class GameUi < Gosu::Window
   end
 
   def can_update_state?
-    @count ||= 10
-    @count >= 10
+    @count ||= 3
+    @count >= 3
   end
 
   def most_recent_state?
@@ -253,14 +258,24 @@ class GameUi < Gosu::Window
   end
 
   def draw
-    @count ||= 10
+    @count ||= 3
     @count += 1
 
     current_state.each_with_x_y do |tile, x, y|
       @tiles[tiles_to_sprite[tile]].draw(x*32, y*32, 0)
+      # draw fog
+      if !current_state.can_see?(x,y,0)
+        @effects[172+2+16].draw(x*32, y*32, 0.5, 1, 1, ALPHA_COLOR)
+      end
     end
     current_state.units.each do |u|
+      next unless current_state.can_see?(u.x, u.y, 0)
       @chars[u.sprite].draw(u.x*32, u.y*32, 1)
+      @effects[3+2*u.team].draw_as_quad(u.x*32, u.y*32, Gosu::Color::WHITE,
+        u.x*32, u.y*32 + 8, Gosu::Color::WHITE,
+        u.x*32 + 8, u.y*32 + 8, Gosu::Color::WHITE,
+        u.x*32 + 8, u.y*32, Gosu::Color::WHITE,
+        1.5,)
       if u == @current_unit && @current_action == :select_move
         4.times do |m|
           next unless u.moves[m]
@@ -321,7 +336,7 @@ class GameUi < Gosu::Window
 
   def select_unit!
     u = current_state.unit_at(@selector_x, @selector_y)
-    if u
+    if u && u.team == 0
       @current_action = :select_move
       @current_unit = u
       @current_move = nil
