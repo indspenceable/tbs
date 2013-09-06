@@ -23,9 +23,18 @@ class Movement
     # actor.y = point[1]
     gs = starting_state
     state_changes = []
-    path[1,path.length-1].each do |point|
-      state_changes << StateChange::MoveUnit.new(gs, actor.uid, point)
-      gs = state_changes.last.ending_state
+    catch(:interrupt_movement) do
+      path[1,path.length-1].each do |point|
+        if gs.block_movement?(actor.uid, point)
+          state_changes << StateChange::Blocked.new(gs, actor.uid)
+          throw(:interrupt_movement)
+        else
+          state_changes << StateChange::MoveUnit.new(gs, actor.uid, point)
+          gs = state_changes.last.ending_state
+          state_changes += gs.terrain_state_changes(actor.uid, point)
+        end
+        gs = state_changes.last.ending_state
+      end
     end
     state_changes
   end
@@ -152,7 +161,6 @@ class GameUi < Gosu::Window
       unless starting_game_state.unit_at(x,y) || starting_game_state.blocked?(x,y)
         starting_game_state.add_unit!(Unit.new(x,y,i))
       end
-      puts "UID is #{i}"
     end
 
     @state_changes = [StateChange::StartGame.new(starting_game_state)]
@@ -189,6 +197,10 @@ class GameUi < Gosu::Window
 
   def most_recent_state?
     @current_state_id == @state_changes.length-1
+  end
+
+  def most_recent_state
+    @state_changes[-1].ending_state
   end
 
   def current_state
@@ -320,12 +332,13 @@ class GameUi < Gosu::Window
         @path_select_x, @path_select_y = @current_unit.x, @current_unit.y
       end
     else
-      @state_changes += @current_move.add_state_changes(@current_unit, current_state)
+      add_state_changes! @current_move.add_state_changes(@current_unit, current_state)
       unselect_unit!
     end
   end
+
   def select_target!
-    @state_changes += @current_move.add_state_changes(@current_unit, @targets[@target_index], current_state)
+    add_state_changes! @current_move.add_state_changes(@current_unit, @targets[@target_index], current_state)
     unselect_unit!
   end
 
@@ -354,9 +367,16 @@ class GameUi < Gosu::Window
     end
   end
 
+  def add_state_changes! list
+    @state_changes += list
+    @state_changes += most_recent_state.countdown_buffs(@current_unit.uid)
+    @state_changes += most_recent_state.handle_deaths
+   end
+
   def select_path!
-    @state_changes += @current_move.add_state_changes(@current_unit, @path, current_state)
-    @selector_x, @selector_y = @current_unit.x, @current_unit.y
+    return unless [@path_select_x, @path_select_y] == @path.last
+    add_state_changes! @current_move.add_state_changes(@current_unit, @path, current_state)
+    @selector_x, @selector_y = @path_select_x, @path_select_y
     unselect_unit!
   end
 

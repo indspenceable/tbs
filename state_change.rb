@@ -47,7 +47,7 @@ module StateChange
     def enact(gs)
       u = gs.unit_by_id(@uid)
       t = gs.unit_by_id(@tuid)
-      t.hp -= 3
+      t.hp -= 15
     end
   end
 
@@ -70,6 +70,16 @@ module StateChange
       super(ss)
     end
     def enact(gs)
+    end
+  end
+
+  class Death < StateChange
+    def initialize ss, uid
+      @uid = uid
+      super(ss)
+    end
+    def enact(gs)
+      gs.remove_unit_by_id!(@uid)
     end
   end
 end
