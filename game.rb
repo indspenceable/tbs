@@ -43,9 +43,11 @@ class Game
 
   def calculate_los!
     @see_tiles = {}
+    @unit_sees_friends = {}
     [0,1].each do |team|
       @current_team = team
       units_by_team(team).each do |u|
+        @current_viewer = u
         do_fov(u.x, u.y, u.sight_range)
       end
     end
@@ -56,6 +58,9 @@ class Game
   def light(x,y)
     raise "Need a team!" unless @current_team
     @see_tiles[[@current_team, x, y]] = true
+    if unit_at(x,y) && unit_at(x,y).team == @current_team && unit_at(x,y) != @current_viewer
+      @unit_sees_friends[@current_viewer.uid] = true
+    end
   end
   def can_see?(x,y,team)
     @see_tiles[[team, x, y]]
@@ -66,6 +71,9 @@ class Game
   end
   def open?(x,y)
    !blocked?(x,y)
+  end
+  def can_see_friends?(uid)
+    @unit_sees_friends[uid]
   end
 
   def terrain_state_changes(actor_uid, point)

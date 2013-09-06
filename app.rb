@@ -77,10 +77,12 @@ end
 
 class Assasinate < MeleeAttack
   def add_state_changes actor, target, starting_state
-    if false
-      [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power*3)]
-    else
+    if starting_state.can_see_friends?(starting_state.unit_at(*target).uid)
+      puts "BOOM"
       [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power)]
+    else
+      puts "Loom :("
+      [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power*3)]
     end
   end
 end
@@ -362,6 +364,7 @@ class GameUi < Gosu::Window
     @path = nil
   end
   def select_move!
+    return unless @current_move
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_targets
         @targets = @current_move.targets(@current_unit, current_state)
