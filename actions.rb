@@ -192,3 +192,32 @@ class Knockback
     "Knockback"
   end
 end
+
+class Blink
+  def initialize range
+    @range = range
+  end
+  def targetted?
+    :select_from_targets
+  end
+  def targets actor, game
+    targets = []
+    puts "ACTOR IS #{actor}"
+    (actor.y-@range).upto(actor.y+@range).each do |y|
+      targets += (actor.x-@range).upto(actor.x+@range).map do |x|
+        [x,y] unless !game.can_see?(x,y,actor.team) || game.blocked?(x,y) || game.unit_at(x,y)
+      end.compact
+    end
+    targets - [actor.x, actor.y]
+  end
+  def display_name
+    "Blink"
+  end
+  def add_state_changes actor, target, starting_state
+    if starting_state.block_movement?(actor.uid, target)
+      [StateChange::Blocked.new(starting_state, actor.uid)]
+    else
+      [StateChange::MoveUnit.new(starting_state, actor.uid, target)]
+    end
+  end
+end

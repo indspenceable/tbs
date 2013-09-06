@@ -45,7 +45,7 @@ class Assasin < Unit
     attack_power: 3,
     movement_range: 7,
     class_moves: [
-      # Blink.new(3),
+      Blink.new(3),
       # ShadowMeld.new,
     ],
     attack_class: Assasinate,

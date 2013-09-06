@@ -67,6 +67,7 @@ class Game
   end
 
   def blocked?(x,y)
+    return true if x < 0 || x >= @width || y < 0 || y >= @height
     @map[x][y] == :wall
   end
   def open?(x,y)
