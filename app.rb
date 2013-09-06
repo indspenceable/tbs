@@ -5,8 +5,11 @@ require './actions'
 require './unit'
 ALPHA_COLOR = Gosu::Color.argb(0x66ffffff)
 
-MAP_WIDTH = 640
-MAP_HEIGHT = 480
+MAP_WIDTH_TILES = (ARGV[0] || 20).to_i
+MAP_HEIGHT_TILES = (ARGV[1] || 15).to_i
+
+MAP_WIDTH = MAP_WIDTH_TILES * 32
+MAP_HEIGHT = MAP_HEIGHT_TILES * 32
 UI_WIDTH = 160
 
 FONT_SIZE = 16
@@ -16,7 +19,7 @@ CURRENT_TEAM = 1  #todo make this go away; but at least using a constant for
 
 class GameUi < Gosu::Window
   def initialize
-    super(640+UI_WIDTH,480,false)
+    super(MAP_WIDTH+UI_WIDTH,MAP_HEIGHT,false)
 
     @tiles = Gosu::Image.load_tiles(self, 'tiles.png', 32, 32, true)
     @effects = Gosu::Image.load_tiles(self, 'effects.png', 32, 32, true)
@@ -25,7 +28,7 @@ class GameUi < Gosu::Window
 
     @selector_x, @selector_y = 0,0
 
-    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP2))]
+    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP1))]
     current_state
 
     @current_action = :select_unit
@@ -93,7 +96,7 @@ class GameUi < Gosu::Window
   def draw_map
     current_state.each_with_x_y do |tile, _x, _y|
       x, y = _x-@camera_x, _y-@camera_y
-      next unless x < 20 && x >= 0 && y < 15 && y >= 0
+      next unless x < MAP_WIDTH_TILES && x >= 0 && y < MAP_HEIGHT_TILES && y >= 0
       @tiles[tiles_to_sprite[tile]].draw(x*32, y*32, 0)
       # draw fog
       if !current_state.can_see?(_x,_y,CURRENT_TEAM)
@@ -110,9 +113,14 @@ class GameUi < Gosu::Window
     draw_doodads
   end
 
+  def on_camera?(x,y)
+    x >= @camera_x && x < @camera_x + MAP_WIDTH_TILES &&
+    y >= @camera_y && y < @camera_y + MAP_HEIGHT_TILES
+  end
+
   def draw_units
     current_state.units.each do |u|
-      next unless current_state.can_see?(u.x, u.y, CURRENT_TEAM)
+      next unless current_state.can_see?(u.x, u.y, CURRENT_TEAM) && on_camera?(u.x,u.y)
       x, y = u.x-@camera_x, u.y-@camera_y
 
       @chars[u.sprite].draw(x*32, y*32, 1)
@@ -124,15 +132,16 @@ class GameUi < Gosu::Window
     end
   end
   def draw_doodads
+    draw_quad(
+      MAP_WIDTH, 0, Gosu::Color::BLACK,
+      MAP_WIDTH+UI_WIDTH, 0, Gosu::Color::BLACK,
+      MAP_WIDTH+UI_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
+      MAP_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
+      0)
     # this goes in DRAW UI BOX
     if @current_action == :select_move
       # draw a box where the menu is going to go.
-      draw_quad(
-        MAP_WIDTH, 0, Gosu::Color::BLACK,
-        MAP_WIDTH+UI_WIDTH, 0, Gosu::Color::BLACK,
-        MAP_WIDTH+UI_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
-        MAP_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
-        0)
+
 
       @current_unit.moves.each_with_index do |move, index|
         color = @current_move ==  move ? Gosu::Color::RED : Gosu::Color::WHITE
@@ -360,9 +369,9 @@ class GameUi < Gosu::Window
   def scroll_camera_to_point(p)
     x,y = p
     @camera_x -= 1 while @camera_x > x
-    @camera_x += 1 while @camera_x < (x-19)
+    @camera_x += 1 while @camera_x <= (x-MAP_WIDTH_TILES)
     @camera_y -= 1 while @camera_y > y
-    @camera_y += 1 while @camera_y < (y-14)
+    @camera_y += 1 while @camera_y <= (y-MAP_HEIGHT_TILES)
   end
 
   def update_path!
