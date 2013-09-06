@@ -73,6 +73,17 @@ module StateChange
     end
   end
 
+  class Slime < StateChange
+    def initialize ss, uid
+      @uid = uid
+      super(ss)
+    end
+    def enact(gs)
+      u = gs.unit_by_id(@uid)
+      u.hp -= 15
+    end
+  end
+
   class Death < StateChange
     def initialize ss, uid
       @uid = uid

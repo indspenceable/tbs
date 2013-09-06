@@ -18,11 +18,10 @@ class Movement
     :path
   end
   def add_state_changes actor, path, starting_state
-    # point = path[-1]
-    # actor.x = point[0]
-    # actor.y = point[1]
     gs = starting_state
     state_changes = []
+
+    # Holy Moley, this is ugly...
     catch(:interrupt_movement) do
       path[1,path.length-1].each do |point|
         if gs.block_movement?(actor.uid, point)
@@ -32,8 +31,11 @@ class Movement
           state_changes << StateChange::MoveUnit.new(gs, actor.uid, point)
           gs = state_changes.last.ending_state
           state_changes += gs.terrain_state_changes(actor.uid, point)
+          gs = state_changes.last.ending_state
+          if gs.unit_by_id(actor.uid).hp < 0
+            throw(:interrupt_movement)
+          end
         end
-        gs = state_changes.last.ending_state
       end
     end
     state_changes
@@ -147,7 +149,7 @@ class GameUi < Gosu::Window
 
 
     starting_game_state = Game.new(20,15) do |x,y|
-      rand(3) == 0 ? :wall : :floor
+      rand(3) == 0 ? :wall : rand(3) == 0 ? :slime : :floor
     end
 
 
@@ -223,16 +225,16 @@ class GameUi < Gosu::Window
     @state
   end
 
+  def tiles_to_sprite
+    {:floor => 12, :wall => 5, :slime => 66}
+  end
+
   def draw
     @count ||= 10
     @count += 1
 
     current_state.each_with_x_y do |tile, x, y|
-      if tile==:floor
-        @tiles[12].draw(x*32, y*32, 0)
-      else
-        @tiles[5].draw(x*32, y*32, 0)
-      end
+      @tiles[tiles_to_sprite[tile]].draw(x*32, y*32, 0)
     end
     current_state.units.each do |u|
       @chars[u.sprite].draw(u.x*32, u.y*32, 1)

@@ -32,15 +32,19 @@ class Game
     end
   end
   def blocked?(x,y)
-    @map[x][y] != :floor
+    @map[x][y] == :wall
   end
   def open?(x,y)
-    @map[x][y] == :floor
+   !blocked?(x,y)
   end
 
   def terrain_state_changes(actor_uid, point)
-    # TODO make this work
-    []
+    x,y = point
+    sc = []
+    if @map[x][y] == :slime
+      sc << StateChange::Slime.new(self, actor_uid)
+    end
+    sc
   end
 
   def countdown_buffs(actor_uid)
