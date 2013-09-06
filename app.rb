@@ -149,9 +149,13 @@ class GameUi < Gosu::Window
         @font.draw(move.display_name, MAP_WIDTH, (FONT_SIZE+4)*index, 1, 1, 1, color)
       end
     else
-      unit = (@targets && current_state.unit_at(*@targets[@target_index])) ||
-        (@current_action==:select_move && @current_unit) ||
-        current_state.unit_at(@selector_x, @selector_y)
+      unit = (@targets &&
+        current_state.can_see?(*@targets[@target_index], 0) &&
+        current_state.unit_at(*@targets[@target_index])) ||
+        (@current_action==:select_move &&
+          @current_unit) ||
+        (current_state.can_see?(@selector_x, @selector_y, 0) &&
+          current_state.unit_at(@selector_x, @selector_y))
 
       if most_recent_state? && unit
         lines = []
