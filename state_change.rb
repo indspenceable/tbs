@@ -39,6 +39,20 @@ module StateChange
   end
 
   class Attack < StateChange
+    def initialize ss, uid, target_id, power
+      @uid = uid
+      @tuid = target_id
+      @power = power
+      super(ss)
+    end
+    def enact(gs)
+      u = gs.unit_by_id(@uid)
+      t = gs.unit_by_id(@tuid)
+      t.hp -= @power
+    end
+  end
+
+  class Knockback < StateChange
     def initialize ss, uid, target_id
       @uid = uid
       @tuid = target_id
@@ -47,7 +61,10 @@ module StateChange
     def enact(gs)
       u = gs.unit_by_id(@uid)
       t = gs.unit_by_id(@tuid)
-      t.hp -= 15
+      #TODO make sure that unit can move to that location.
+      t.x += (t.x - u.x)
+      t.y += (t.y - u.y)
+      t.hp -= 3
     end
   end
 
@@ -80,7 +97,7 @@ module StateChange
     end
     def enact(gs)
       u = gs.unit_by_id(@uid)
-      u.hp -= 15
+      u.hp -= 3
     end
   end
 

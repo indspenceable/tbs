@@ -2,6 +2,7 @@ require 'gosu'
 require './game'
 require './state_change'
 
+
 # TODO this should all be encapsulated somewhere.
 def point_dist(x,y,x2,y2)
   (x-x2).abs + (y-y2).abs
@@ -13,6 +14,9 @@ end
 class Movement
   def sprite
     58
+  end
+  def initialize mpl
+    @max_path_length = mpl
   end
   def targetted?
     :path
@@ -41,7 +45,7 @@ class Movement
     state_changes
   end
   def max_path_length
-    5
+    @max_path_length
   end
   def valid_on_path?(point, game)
     game.open?(*point) && !game.unit_at(*point)
@@ -52,9 +56,15 @@ class MeleeAttack
   def sprite
     53
   end
+
   def targetted?
     :select_from_targets
   end
+
+  def initialize power
+    @power = power
+  end
+
   def targets actor, game
     game.units.select{|u| distance(u,actor) == 1 }.map do |u|
       [u.x, u.y]
@@ -62,7 +72,7 @@ class MeleeAttack
   end
 
   def add_state_changes actor, target, starting_state
-    [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
+    [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power)]
   end
 end
 
@@ -125,23 +135,24 @@ class Defend
   end
 end
 
-class Unit
+class Knockback
   def sprite
-    1
+    57
   end
-  attr_accessor :x, :y, :moves, :uid, :hp
-  def initialize x,y, uid
-    @x, @y = x, y
-    @uid = uid
-    @hp = 20
-    @moves = [
-      MeleeAttack.new,
-      Movement.new,
-      Defend.new,
-      Bow.new,
-    ]
+  def targetted?
+    :select_from_targets
+  end
+  def targets actor, game
+    game.units.select{|u| distance(u,actor) == 1 }.map do |u|
+      [u.x, u.y]
+    end
+  end
+  def add_state_changes actor, target, starting_state
+    [StateChange::Knockback.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
   end
 end
+
+require './unit.rb'
 
 class GameUi < Gosu::Window
   def initialize
@@ -161,7 +172,7 @@ class GameUi < Gosu::Window
     (rand(50)+10).times.map do |i|
       x,y = rand(20),rand(15)
       unless starting_game_state.unit_at(x,y) || starting_game_state.blocked?(x,y)
-        starting_game_state.add_unit!(Unit.new(x,y,i))
+        starting_game_state.add_unit!(Warrior.new(x,y,i))
       end
     end
 
