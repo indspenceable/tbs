@@ -27,6 +27,10 @@ class Unit
       end
     end
   end
+
+  def class_name
+    self.class.name
+  end
 end
 
 class Warrior < Unit

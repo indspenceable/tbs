@@ -82,10 +82,8 @@ end
 class Assasinate < MeleeAttack
   def add_state_changes actor, target, starting_state
     if starting_state.can_see_friends?(starting_state.unit_at(*target).uid)
-      puts "BOOM"
       [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power)]
     else
-      puts "Loom :("
       [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power*3)]
     end
   end

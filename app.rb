@@ -137,21 +137,32 @@ class GameUi < Gosu::Window
   def draw_doodads
     if @current_action == :select_move
       # draw a box where the menu is going to go.
-
-
       draw_quad(
         MAP_WIDTH, 0, Gosu::Color::BLACK,
         MAP_WIDTH+UI_WIDTH, 0, Gosu::Color::BLACK,
         MAP_WIDTH+UI_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
         MAP_WIDTH, MAP_HEIGHT, Gosu::Color::BLACK,
-        0
-      )
+        0)
 
       @current_unit.moves.each_with_index do |move, index|
         color = @current_move ==  move ? Gosu::Color::RED : Gosu::Color::WHITE
         @font.draw(move.display_name, MAP_WIDTH, (FONT_SIZE+4)*index, 1, 1, 1, color)
       end
+    else
+      unit = (@targets && current_state.unit_at(*@targets[@target_index])) ||
+        (@current_action==:select_move && @current_unit) ||
+        current_state.unit_at(@selector_x, @selector_y)
 
+      if most_recent_state? && unit
+        lines = []
+        lines << unit.class_name
+        lines << ""
+        lines << "#{unit.hp} / #{unit.max_hp}"
+        lines.each_with_index do |l,i|
+          @font.draw(l, MAP_WIDTH, (FONT_SIZE+4)*i, 10)
+        end
+      end
+    end
       # BOX MENU
       # height_of_box = 16*5+8*4
       # width_of_box = 120
@@ -189,7 +200,6 @@ class GameUi < Gosu::Window
       #     )
       #   end
       # end
-    end
 
     if most_recent_state?
       if @current_action == :select_path
