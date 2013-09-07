@@ -3,7 +3,7 @@ require './game'
 require './state_change'
 require './actions'
 require './unit'
-require './server'
+require 'httparty'
 
 ALPHA_COLOR = Gosu::Color.argb(0x66ffffff)
 
@@ -20,8 +20,7 @@ CURRENT_TEAM = 1  #todo make this go away; but at least using a constant for
                   # now will make it easier to refactor later.
 
 class GameUi < Gosu::Window
-  def initialize(server)
-    @server = server
+  def initialize()
     super(MAP_WIDTH+UI_WIDTH,MAP_HEIGHT,false)
 
     @tiles = Gosu::Image.load_tiles(self, 'tiles.png', 32, 32, true)
@@ -110,11 +109,21 @@ class GameUi < Gosu::Window
   end
 
   def try_to_talk_to_server
+
     qscs = queued_state_changes
     if qscs.any?
-      @server.receive(YAML.dump(qscs))
+      # @server.receive(YAML.dump(qscs))
+      new_changes = HTTParty.post('http://localhost:4567/game', :body => {:action_yaml => YAML.dump(qscs), :index => number_of_validated_state_changes}).body
+      apply_state_changes_from_server(new_changes)
+      return
     end
-    apply_state_changes_from_server(@server.newer_changes(number_of_validated_state_changes))
+
+    @throttle ||= 0
+    @throttle += 1
+    return unless @throttle > 50
+    @throttle = 0
+    new_changes = HTTParty.get('http://localhost:4567/updates', :body => {:index => number_of_validated_state_changes}).body
+    apply_state_changes_from_server(new_changes)
   end
 
   def draw
@@ -517,6 +526,5 @@ class GameUi < Gosu::Window
   end
 end
 
-server = Server.new
-ui = GameUi.new(server)
+ui = GameUi.new()
 ui.show
