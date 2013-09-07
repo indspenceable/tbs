@@ -80,6 +80,21 @@ xxxxxxxxxxxxxxxxxxxx
     gs
   end
 
+  def same?(o)
+    o.each_with_x_y do |t,x,y|
+      unless @map[x][y] == t
+        puts "Tile at #{x}, #{y} is different. <#{@map[x][y]}><#{t}>"
+        return false
+      end
+    end
+    @units.count.times do |i|
+      unless @units[i].same?(o.units[i])
+        return false
+      end
+    end
+    return true
+  end
+
   def add_unit!(unit)
     raise "No id" unless unit.uid
     raise "Unit with that id already." if unit_by_id(unit.uid)
@@ -135,7 +150,6 @@ xxxxxxxxxxxxxxxxxxxx
   end
 
   def blocked?(x,y)
-    puts "LOOKING AT #{x} #{y}"
     return true if x < 0 || x >= @width || y < 0 || y >= @height
     @map[x][y] == :wall
   end

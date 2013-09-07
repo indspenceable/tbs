@@ -3,6 +3,8 @@ require './game'
 require './state_change'
 require './actions'
 require './unit'
+require './server'
+
 ALPHA_COLOR = Gosu::Color.argb(0x66ffffff)
 
 MAP_WIDTH_TILES = (ARGV[0] || 20).to_i
@@ -18,7 +20,8 @@ CURRENT_TEAM = 1  #todo make this go away; but at least using a constant for
                   # now will make it easier to refactor later.
 
 class GameUi < Gosu::Window
-  def initialize
+  def initialize(server)
+    @server = server
     super(MAP_WIDTH+UI_WIDTH,MAP_HEIGHT,false)
 
     @tiles = Gosu::Image.load_tiles(self, 'tiles.png', 32, 32, true)
@@ -28,7 +31,7 @@ class GameUi < Gosu::Window
 
     @selector_x, @selector_y = 0,0
 
-    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP1))]
+    @state_changes = []
     current_state
 
     @current_action = :select_unit
@@ -71,6 +74,7 @@ class GameUi < Gosu::Window
   end
 
   def current_state
+    return nil unless @state_changes.any?
     @current_state_id ||= -1
     if (!most_recent_state? && can_update_state?) || @state.nil?
       @current_state_id += 1
@@ -105,7 +109,17 @@ class GameUi < Gosu::Window
     end
   end
 
+  def try_to_talk_to_server
+    qscs = queued_state_changes
+    if qscs.any?
+      @server.receive(YAML.dump(qscs))
+    end
+    apply_state_changes_from_server(@server.newer_changes(number_of_validated_state_changes))
+  end
+
   def draw
+    try_to_talk_to_server
+    return unless @state_changes.any?
     @count ||= 3
     @count += 1
     draw_map
@@ -296,6 +310,7 @@ class GameUi < Gosu::Window
   end
   def select_move!
     return unless @current_move
+
     if @current_move.targetted?
       puts "targetted #{@current_move.targetted?}..."
       if @current_move.targetted? == :select_from_target_list || @current_move.targetted? == :select_from_targets
@@ -388,10 +403,28 @@ class GameUi < Gosu::Window
     end
   end
 
+  def apply_state_changes_from_server list
+    @state_changes += YAML.load(list)
+  end
+  def number_of_validated_state_changes
+    YAML.dump(@state_changes.count)
+  end
+
+  def queued_state_changes
+    r = @qscs || []
+    @qscs = []
+    r
+  end
+
+  def send_along_wire(list)
+    @qscs += list
+  end
+
   def add_state_changes! list
-    @state_changes += list
-    @state_changes += most_recent_state.countdown_buffs(@current_unit.uid)
-    @state_changes += most_recent_state.handle_deaths
+    send_along_wire(list)
+    # @state_changes += list
+    # @state_changes += most_recent_state.countdown_buffs(@current_unit.uid)
+    # @state_changes += most_recent_state.handle_deaths
    end
 
   def select_path!
@@ -403,6 +436,7 @@ class GameUi < Gosu::Window
 
   def button_down(id)
     return exit if id == Gosu::KbEscape
+    return unless @state_changes.any?
 
     case @current_action
     when :select_unit, :select_target
@@ -483,4 +517,6 @@ class GameUi < Gosu::Window
   end
 end
 
-GameUi.new.show
+server = Server.new
+ui = GameUi.new(server)
+ui.show

@@ -31,6 +31,14 @@ class Unit
   def class_name
     self.class.name
   end
+
+  def same?(o)
+    return false unless o.class == self.class
+    [:x, :y, :uid, :hp, :team].each do |s|
+      return false unless o.send(s) == self.send(s)
+    end
+    return true
+  end
 end
 
 class Warrior < Unit
