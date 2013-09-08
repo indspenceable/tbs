@@ -7,8 +7,8 @@ require 'httparty'
 
 ALPHA_COLOR = Gosu::Color.argb(0x66ffffff)
 
-MAP_WIDTH_TILES = (ARGV[0] || 20).to_i
-MAP_HEIGHT_TILES = (ARGV[1] || 15).to_i
+MAP_WIDTH_TILES = (ARGV[1] || 20).to_i
+MAP_HEIGHT_TILES = (ARGV[2] || 15).to_i
 
 MAP_WIDTH = MAP_WIDTH_TILES * 32
 MAP_HEIGHT = MAP_HEIGHT_TILES * 32
@@ -16,8 +16,8 @@ UI_WIDTH = 160
 
 FONT_SIZE = 16
 
-CURRENT_TEAM = 1  #todo make this go away; but at least using a constant for
-                  # now will make it easier to refactor later.
+raise "No team!" unless ARGV[0]
+CURRENT_TEAM =  ARGV[0].to_i
 
 class GameUi < Gosu::Window
   def initialize()
@@ -192,43 +192,6 @@ class GameUi < Gosu::Window
         end
       end
     end
-      # BOX MENU
-      # height_of_box = 16*5+8*4
-      # width_of_box = 120
-
-      # top_of_box = @current_unit.y * 32
-      # if @current_unit.y * 32 + height_of_box > 480
-      #   top_of_box -= height_of_box - 32
-      # end
-      # left_of_box = (@current_unit.x+1)*32
-      # if left_of_box + width_of_box > 640
-      #   left_of_box = @current_unit.x*32 - width_of_box
-      # end
-
-      # draw_quad(
-      #   left_of_box,              top_of_box,               Gosu::Color::RED,
-      #   left_of_box+width_of_box, top_of_box,               Gosu::Color::RED,
-      #   left_of_box+width_of_box, top_of_box+height_of_box, Gosu::Color::RED,
-      #   left_of_box,              top_of_box+height_of_box, Gosu::Color::RED,
-      #   10)
-
-      # OLD STYLE
-      # 4.times do |m|
-      #   next unless @current_unit.moves[m]
-      #   @effects[ @current_unit.moves[m].sprite].draw(
-      #     ( @current_unit.x + (m+0)%2 * ((m/2)*2-1))*32,
-      #     ( @current_unit.y + (m+1)%2 * ((m/2)*2-1))*32,
-      #     2
-      #   )
-      #   #TODO make this better
-      #   if @current_move ==  @current_unit.moves[m]
-      #     @effects[139].draw(
-      #       ( @current_unit.x + (m+0)%2 * ((m/2)*2-1))*32,
-      #       ( @current_unit.y + (m+1)%2 * ((m/2)*2-1))*32,
-      #       2
-      #     )
-      #   end
-      # end
 
     if most_recent_state?
       if @current_action == :select_path
