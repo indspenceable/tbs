@@ -1,9 +1,22 @@
 
+class Action
+  def prep *args
+    YAML.dump(arguments: args, class_name: self.class.name)
+  end
+  def self.exec(hash, starting_state)
+    puts "Looking at #{hash}"
+    klass = const_get(hash[:class_name])
+    puts "klass is #{hash[:class_name]} -- #{klass} >>"
+    raise "Must be an Action" unless klass < Action
+    klass.state_changes(*hash[:arguments], starting_state)
+  end
+end
+
 def distance(u1,u2)
   (u1.x - u2.x).abs + (u1.y-u2.y).abs
 end
 
-class Movement
+class Movement < Action
   def sprite
     58
   end
@@ -16,22 +29,22 @@ class Movement
     :path
   end
 
-  def add_state_changes actor, path, starting_state
+  def self.state_changes actor_uid, path, starting_state
     gs = starting_state
     state_changes = []
 
     # Holy Moley, this is ugly...
     catch(:interrupt_movement) do
       path[1,path.length-1].each do |point|
-        if gs.block_movement?(actor.uid, point)
-          state_changes << StateChange::Blocked.new(gs, actor.uid)
+        if gs.block_movement?(actor_uid, point)
+          state_changes << StateChange::Blocked.new(gs, actor_uid)
           throw(:interrupt_movement)
         else
-          state_changes << StateChange::MoveUnit.new(gs, actor.uid, point)
+          state_changes << StateChange::MoveUnit.new(gs, actor_uid, point)
           gs = state_changes.last.ending_state
-          state_changes += gs.terrain_state_changes(actor.uid, point)
+          state_changes += gs.terrain_state_changes(actor_uid, point)
           gs = state_changes.last.ending_state
-          throw(:interrupt_movement) if gs.unit_by_id(actor.uid).hp < 0
+          throw(:interrupt_movement) if gs.unit_by_id(actor_uid).hp < 0
         end
       end
     end
@@ -51,7 +64,7 @@ class Movement
   end
 end
 
-class MeleeAttack
+class MeleeAttack < Action
   def sprite
     53
   end
@@ -70,8 +83,8 @@ class MeleeAttack
     end
   end
 
-  def add_state_changes actor, target, starting_state
-    [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power)]
+  def self.state_changes actor_uid, target, starting_state
+    [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid, @power)]
   end
 
   def display_name
@@ -80,11 +93,11 @@ class MeleeAttack
 end
 
 class Assasinate < MeleeAttack
-  def add_state_changes actor, target, starting_state
+  def self.state_changes actor_id, target, starting_state
     if starting_state.can_see_friends?(starting_state.unit_at(*target).uid)
-      [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power)]
+      [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @power)]
     else
-      [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid, @power*3)]
+      [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @power*3)]
     end
   end
 
@@ -93,34 +106,36 @@ class Assasinate < MeleeAttack
   end
 end
 
-class Heal
+class Heal < Action
   def sprite
     20
   end
   def targetted?
     :select_from_target_list
   end
-  def targets actor, game
+  def targets actor_uid, game
+    actor = game.unit_by_id(actor_uid)
     game.units.select{|u| distance(u, actor) <= 3 }.map do |u|
       [u.x, u.y]
     end
   end
-  def add_state_changes actor, target, starting_state
-    [StateChange::Heal.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
+  def self.state_changes actor_uid, target, starting_state
+    [StateChange::Heal.new(starting_state, actor_uid, starting_state.unit_at(*target).uid)]
   end
   def display_name
     "Heal"
   end
 end
 
-class Bow
+class Bow < Action
   def sprite
     64
   end
     def targetted?
     :select_from_target_list
   end
-  def targets actor, game
+  def targets actor_uid, game
+    actor = game.unit_by_id(actor_uid)
     _targets = []
     4.times do |i|
       x = (i+0)%2 * ((i/2)*2-1)
@@ -137,42 +152,45 @@ class Bow
     end
     _targets.map{|u| [u.x, u.y]}
   end
-  def add_state_changes actor, target, starting_state
-    [StateChange::Attack.new(starting_state, actor.uid, starting_state.unit_at(*target).uid)]
+  def self.state_changes actor_uid, target, starting_state
+    [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid)]
   end
   def display_name
     "Bow"
   end
 end
 
-class Defend
+class Defend < Action
   def sprite
     48
   end
   def targetted?
     false
   end
-  def add_state_changes actor, starting_state
-    [StateChange::Defense.new(starting_state, actor.uid)]
+  def self.state_changes actor_uid, starting_state
+    [StateChange::Defense.new(starting_state, actor_uid)]
   end
   def display_name
     "Defensive Stance"
   end
 end
 
-class Knockback
+class Knockback < Action
   def sprite
     57
   end
   def targetted?
     :select_from_target_list
   end
-  def targets actor, game
+  def targets actor_uid, game
+    actor = game.unit_by_id(actor_uid)
     game.units.select{|u| distance(u,actor) == 1 && u.team != actor.team }.map do |u|
       [u.x, u.y]
     end
   end
-  def add_state_changes actor, target, starting_state
+  def self.state_changes actor_uid, target, starting_state
+    actor = starting_state.unit_by_id(actor_uid)
+
     target_unit = starting_state.unit_at(*target)
     sx, sy = target_unit.x, target_unit.y
     state_changes = [
@@ -190,7 +208,9 @@ class Knockback
   end
 end
 class BullRush < Knockback
-  def add_state_changes actor, target, starting_state
+  def self.state_changes actor_uid, target, starting_state
+    actor = starting_state.unit_by_id(actor_uid)
+
     target_unit = starting_state.unit_at(*target)
     sx, sy = target_unit.x, target_unit.y
     state_changes = [
@@ -211,14 +231,16 @@ class BullRush < Knockback
   end
 end
 
-class Blink
+class Blink < Action
   def initialize range
     @range = range
   end
   def targetted?
     :select_from_targets
   end
-  def targets actor, game
+  def targets actor_uid, game
+    actor = game.unit_by_id(actor_uid)
+
     targets = []
     (actor.y-@range).upto(actor.y+@range).each do |y|
       targets += (actor.x-@range).upto(actor.x+@range).map do |x|
@@ -230,11 +252,11 @@ class Blink
   def display_name
     "Blink"
   end
-  def add_state_changes actor, target, starting_state
-    if starting_state.block_movement?(actor.uid, target)
-      [StateChange::Blocked.new(starting_state, actor.uid)]
+  def self.state_changes actor_uid, target, starting_state
+    if starting_state.block_movement?(actor_uid, target)
+      [StateChange::Blocked.new(starting_state, actor_uid)]
     else
-      [StateChange::MoveUnit.new(starting_state, actor.uid, target)]
+      [StateChange::MoveUnit.new(starting_state, actor_uid, target)]
     end
   end
 end

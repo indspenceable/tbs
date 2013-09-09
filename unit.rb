@@ -5,6 +5,7 @@ class Unit
     @uid = uid
     @hp = max_hp
     @team = team
+    puts "attack_class is #{attack_class.name}"
     @moves = [
       attack_class.new(attack_power),
       *class_moves,

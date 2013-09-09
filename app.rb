@@ -105,11 +105,10 @@ class GameUi < Gosu::Window
   end
 
   def try_to_talk_to_server
-
-    qscs = queued_state_changes
-    if qscs.any?
+    if @pending_move
       # @server.receive(YAML.dump(qscs))
-      new_changes = HTTParty.post('http://localhost:4567/game', :body => {:action_yaml => YAML.dump(qscs), :index => number_of_validated_state_changes}).body
+      new_changes = HTTParty.post('http://localhost:4567/game', :body => {:action_yaml => @pending_move, :index => number_of_validated_state_changes}).body
+      @pending_move = nil
       apply_state_changes_from_server(new_changes)
       return
     end
@@ -280,18 +279,14 @@ class GameUi < Gosu::Window
     return unless @current_move
 
     if @current_move.targetted?
-      puts "targetted #{@current_move.targetted?}..."
       if @current_move.targetted? == :select_from_target_list || @current_move.targetted? == :select_from_targets
-        puts "good..."
         @targets = @current_move.targets(@current_unit, current_state)
         # only move on if there are any targets...
         if @targets.any?
-          puts "TARGETS!"
           if @current_move.targetted? == :select_from_target_list
             @current_action = :select_from_target_list
             @target_index = 0
           else
-            puts "BOOM"
             @old_select_x, @old_select_y = @selector_x, @selector_y
             unless @targets.include?([@selector_x,@selector_y])
               # @selector_x, @selector_y = @targets[0]
@@ -307,7 +302,8 @@ class GameUi < Gosu::Window
         @path_select_x, @path_select_y = @current_unit.x, @current_unit.y
       end
     else
-      add_state_changes! @current_move.add_state_changes(@current_unit, current_state)
+      # add_state_changes! @current_move.add_state_changes(@current_unit, current_state)
+      transmit_move_to_server(@current_move.prep(@current_unit.uid))
       unselect_unit!
     end
   end
@@ -322,14 +318,18 @@ class GameUi < Gosu::Window
   end
 
   def select_target_from_list!
-    add_state_changes! @current_move.add_state_changes(@current_unit, @targets[@target_index], current_state)
+    # add_state_changes! @current_move.add_state_changes(@current_unit, @targets[@target_index], current_state)
+    transmit_move_to_server(@current_move.prep(@current_unit.uid, @targets[@target_index]))
+
     unselect_unit!
   end
 
   def select_target!
     point = [@selector_x, @selector_y]
     return unless @targets.include?(point)
-    add_state_changes! @current_move.add_state_changes(@current_unit, point, current_state)
+    # add_state_changes! @current_move.add_state_changes(@current_unit, point, current_state)
+    transmit_move_to_server(@current_move.prep(@current_unit.uid, point))
+
     unselect_unit!
   end
 
@@ -378,26 +378,15 @@ class GameUi < Gosu::Window
     YAML.dump(@state_changes.count)
   end
 
-  def queued_state_changes
-    r = @qscs || []
-    @qscs = []
-    r
+  def transmit_move_to_server(yaml)
+    @pending_move = yaml
   end
-
-  def send_along_wire(list)
-    @qscs += list
-  end
-
-  def add_state_changes! list
-    send_along_wire(list)
-    # @state_changes += list
-    # @state_changes += most_recent_state.countdown_buffs(@current_unit.uid)
-    # @state_changes += most_recent_state.handle_deaths
-   end
 
   def select_path!
     return unless [@path_select_x, @path_select_y] == @path.last
-    add_state_changes! @current_move.add_state_changes(@current_unit, @path, current_state)
+    # add_state_changes! @current_move.add_state_changes(@current_unit, @path, current_state)
+    transmit_move_to_server(@current_move.prep(@current_unit.uid, @path))
+
     @selector_x, @selector_y = @path_select_x, @path_select_y
     unselect_unit!
   end
