@@ -3,14 +3,27 @@ require './permissive_fov'
 class Game
   attr_reader :units
   include PermissiveFieldOfView
-  def initialize(w,h)
+  def initialize(w, h, team_count=2)
     @width, @height = w, h
     @map = Array.new(w) do |x|
       Array.new(h) do |y|
         yield(x,y)
       end
     end
+    @team_count = 0
+    @current_team = 0
     @units =[]
+  end
+
+  def next_turn!
+    @units.each do |u|
+      u.restore_movement!
+    end
+    @current_team = (@current_team+1)%2
+  end
+
+  def current_team
+    @current_team
   end
 
   MAP1 = <<-EOS
@@ -128,7 +141,8 @@ xxxxxxxxxxxxxxxxxxxx
     @see_tiles = {}
     @unit_sees_friends = {}
     [0,1].each do |team|
-      @current_team = team
+      #TODO fix los to encapsulate this variable.
+      @los_current_team = team
       units_by_team(team).each do |u|
         @current_viewer = u
         do_fov(u.x, u.y, u.sight_range)
@@ -139,9 +153,9 @@ xxxxxxxxxxxxxxxxxxxx
     blocked?(x,y)
   end
   def light(x,y)
-    raise "Need a team!" unless @current_team
-    @see_tiles[[@current_team, x, y]] = true
-    if unit_at(x,y) && unit_at(x,y).team == @current_team && unit_at(x,y) != @current_viewer
+    raise "Need a team!" unless @los_current_team
+    @see_tiles[[@los_current_team, x, y]] = true
+    if unit_at(x,y) && unit_at(x,y).team == @los_current_team && unit_at(x,y) != @current_viewer
       @unit_sees_friends[@current_viewer.uid] = true
     end
   end

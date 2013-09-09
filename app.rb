@@ -426,6 +426,7 @@ class GameUi < Gosu::Window
         @selector_y += 1
         scroll_camera_to_point([@selector_x, @selector_y])
       when buttons[:select]
+        return unless most_recent_state? && current_state.current_team == CURRENT_TEAM
         if @current_action == :select_unit
           select_unit!
         else
