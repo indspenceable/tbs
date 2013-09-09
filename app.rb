@@ -74,22 +74,18 @@ class GameUi < Gosu::Window
 
   def current_state
     return nil unless @state_changes.any?
-    @current_state_id ||= -1
-    if (!most_recent_state? && can_update_state?) || @state.nil?
+    # if this is the first time we are setting it, jump to the last state
+    if @current_state_id == nil
+      @current_state_id = @state_changes.length-1
+      @state = @state_changes[@current_state_id].ending_state
+    end
+    # otherwise, only advance if we need to advance the state.
+    if !most_recent_state? && can_update_state?
       @current_state_id += 1
       @count = 0
       @state = @state_changes[@current_state_id].ending_state
     end
     return @state
-
-    @state_count ||= -1
-    return @state if @state_count < @state_changes.length ||
-      (@state && !can_update_state?)
-    @state_count += 1
-    @cached_state = @state_changes[@state_count]
-    @state = @cached_state.ending_state
-    @count = 0
-    @state
   end
 
   def tiles_to_sprite
