@@ -84,6 +84,7 @@ class GameUi < Gosu::Window
       @current_state_id += 1
       @count = 0
       @state = @state_changes[@current_state_id].ending_state
+      self.caption="Current move: #{@state.current_team}"
     end
     return @state
   end
@@ -107,7 +108,11 @@ class GameUi < Gosu::Window
   def try_to_talk_to_server
     if @pending_move
       # @server.receive(YAML.dump(qscs))
-      new_changes = HTTParty.post('http://localhost:4567/game', :body => {:action_yaml => @pending_move, :index => number_of_validated_state_changes}).body
+      new_changes = HTTParty.post('http://localhost:4567/game',
+        :body => {
+          :action_yaml => @pending_move,
+          :index => number_of_validated_state_changes
+        }).body
       @pending_move = nil
       apply_state_changes_from_server(new_changes)
       return
@@ -270,7 +275,7 @@ class GameUi < Gosu::Window
     @selector_y = @old_select_y || @selector_y
     @current_action = :select_unit
     @current_unit = nil
-    @current_move =
+    @current_move = nil
     @targets = nil
     @target_index = nil
     @path_select_x, @path_select_y = nil, nil
@@ -278,7 +283,6 @@ class GameUi < Gosu::Window
   end
   def select_move!
     return unless @current_move
-    puts "CURRENT FATIGUE IS #{@current_unit.fatigue} MOVE FATIGUE IS #{@current_move.fatigue_level}"
     return unless @current_move.fatigue_level > @current_unit.fatigue
 
     if @current_move.targetted?
@@ -309,6 +313,11 @@ class GameUi < Gosu::Window
       transmit_move_to_server(@current_move.prep(@current_unit.uid))
       unselect_unit!
     end
+  end
+
+  def end_turn!
+    transmit_move_to_server(EndTurn.new.prep)
+    unselect_unit!
   end
 
   def prev_move!
@@ -426,6 +435,9 @@ class GameUi < Gosu::Window
         else
           unselect_unit!
         end
+      # TODO fix this.
+      when Gosu::KbN
+        end_turn! if most_recent_state? && current_state.current_team == CURRENT_TEAM
       end
     when :select_move
       case id

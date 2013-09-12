@@ -28,6 +28,18 @@ module StateChange
     end
   end
 
+  class NextTurn < StateChange
+    def initialize ss
+      super(ss)
+    end
+    def enact(gs)
+      gs.units_by_team(gs.current_team).each do |u|
+        u.fatigue!(0)
+      end
+      gs.next_turn!
+    end
+  end
+
   # The initial gamestate
   class StartGame < StateChange
     def initialize ss
@@ -62,9 +74,10 @@ module StateChange
   end
 
   class Attack < StateChange
-    def initialize ss, uid, target_id, power
+    def initialize ss, uid, tuid, power
+      puts "args are #{uid} ; #{tuid} ; #{power}"
       @uid = uid
-      @tuid = target_id
+      @tuid = tuid
       @power = power
       super(ss)
     end

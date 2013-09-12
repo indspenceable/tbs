@@ -16,9 +16,6 @@ class Game
   end
 
   def next_turn!
-    @units.each do |u|
-      u.restore_movement!
-    end
     @current_team = (@current_team+1)%2
   end
 

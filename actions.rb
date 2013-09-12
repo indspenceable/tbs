@@ -1,15 +1,16 @@
 
 class Action
   def prep *args
-    YAML.dump(arguments: args, class_name: self.class.name)
+    YAML.dump(arguments: args, klass: self)
   end
   def self.exec(hash, starting_state)
-    klass = const_get(hash[:class_name])
-    raise "Must be an Action" unless klass < Action
+    # klass = const_get(hash[:class_name])
+    klass = hash[:klass]
+    raise "Must be an Action" unless hash[:klass].is_a? Action
     klass.state_changes(*hash[:arguments], starting_state)
   end
 
-  def self.state_changes actor_uid, *args, starting_state
+  def state_changes actor_uid, *args, starting_state
     scs = []
     raise "Can't use this move!" if starting_state.unit_by_id(actor_uid).fatigue >= fatigue_level
     scs += tire_other_units(actor_uid, starting_state)
@@ -17,7 +18,7 @@ class Action
     scs += fatigue_me(actor_uid, scs.any?? scs.last.ending_state : starting_state)
     scs
   end
-  def self.tire_other_units actor_uid, starting_state
+  def tire_other_units actor_uid, starting_state
     # if no actor, return
     return unless actor_uid
     actor = starting_state.unit_by_id(actor_uid)
@@ -32,14 +33,11 @@ class Action
     end
     scs
   end
-  def self.fatigue_me(actor_uid, starting_state)
+  def fatigue_me(actor_uid, starting_state)
     [StateChange::Fatigue.new(starting_state, actor_uid, fatigue_level)]
   end
-  def self.fatigue_level
-    2
-  end
   def fatigue_level
-    self.class.fatigue_level
+    2
   end
 end
 
@@ -60,7 +58,7 @@ class Movement < Action
     :path
   end
 
-  def self.enact_move actor_uid, path, starting_state
+  def enact_move actor_uid, path, starting_state
     gs = starting_state
     state_changes = []
 
@@ -93,8 +91,16 @@ class Movement < Action
   def display_name
     "Move"
   end
-  def self.fatigue_level
+  def fatigue_level
     1
+  end
+end
+
+class EndTurn < Action
+  def state_changes starting_state
+    [
+      StateChange::NextTurn.new(starting_state)
+    ]
   end
 end
 
@@ -118,7 +124,7 @@ class MeleeAttack < Action
     end
   end
 
-  def self.enact_move actor_uid, target, starting_state
+  def enact_move actor_uid, target, starting_state
     [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid, @power)]
   end
 
@@ -128,7 +134,7 @@ class MeleeAttack < Action
 end
 
 class Assasinate < MeleeAttack
-  def self.enact_move actor_id, target, starting_state
+  def enact_move actor_id, target, starting_state
     if starting_state.can_see_friends?(starting_state.unit_at(*target).uid)
       [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @power)]
     else
@@ -154,7 +160,7 @@ class Heal < Action
       [u.x, u.y]
     end
   end
-  def self.enact_move actor_uid, target, starting_state
+  def enact_move actor_uid, target, starting_state
     [StateChange::Heal.new(starting_state, actor_uid, starting_state.unit_at(*target).uid)]
   end
   def display_name
@@ -187,7 +193,7 @@ class Bow < Action
     end
     _targets.map{|u| [u.x, u.y]}
   end
-  def self.enact_move actor_uid, target, starting_state
+  def enact_move actor_uid, target, starting_state
     [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid)]
   end
   def display_name
@@ -202,7 +208,7 @@ class Defend < Action
   def targetted?
     false
   end
-  def self.enact_move actor_uid, starting_state
+  def enact_move actor_uid, starting_state
     [StateChange::Defense.new(starting_state, actor_uid)]
   end
   def display_name
@@ -223,7 +229,7 @@ class Knockback < Action
       [u.x, u.y]
     end
   end
-  def self.enact_move actor_uid, target, starting_state
+  def enact_move actor_uid, target, starting_state
     actor = starting_state.unit_by_id(actor_uid)
 
     target_unit = starting_state.unit_at(*target)
@@ -243,7 +249,7 @@ class Knockback < Action
   end
 end
 class BullRush < Knockback
-  def self.enact_move actor_uid, target, starting_state
+  def enact_move actor_uid, target, starting_state
     actor = starting_state.unit_by_id(actor_uid)
 
     target_unit = starting_state.unit_at(*target)
@@ -287,7 +293,7 @@ class Blink < Action
   def display_name
     "Blink"
   end
-  def self.enact_move actor_uid, target, starting_state
+  def enact_move actor_uid, target, starting_state
     if starting_state.block_movement?(actor_uid, target)
       [StateChange::Blocked.new(starting_state, actor_uid)]
     else
