@@ -180,7 +180,7 @@ class GameUi < Gosu::Window
       if most_recent_state? && unit
         lines = []
         lines << unit.class_name
-        lines << "Fatigue: #{unit.fatigue}"
+        lines << "Fatigue: #{%w(Unused Moved Attacked)[unit.fatigue]}"
         lines << ""
         lines << "#{unit.hp} / #{unit.max_hp}"
         lines.each_with_index do |l,i|
@@ -278,6 +278,8 @@ class GameUi < Gosu::Window
   end
   def select_move!
     return unless @current_move
+    puts "CURRENT FATIGUE IS #{@current_unit.fatigue} MOVE FATIGUE IS #{@current_move.fatigue_level}"
+    return unless @current_move.fatigue_level > @current_unit.fatigue
 
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_target_list || @current_move.targetted? == :select_from_targets

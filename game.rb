@@ -90,13 +90,14 @@ xxxxxxxxxxxxxxxxxxxx
       gs.add_unit!(classes.shuffle.shift.new(x, y, i, team))
     end
 
+    gs.units.each {|u| u.fatigue! 0}
+
     gs
   end
 
   def same?(o)
     o.each_with_x_y do |t,x,y|
       unless @map[x][y] == t
-        puts "Tile at #{x}, #{y} is different. <#{@map[x][y]}><#{t}>"
         return false
       end
     end

@@ -4,15 +4,14 @@ class Action
     YAML.dump(arguments: args, class_name: self.class.name)
   end
   def self.exec(hash, starting_state)
-    puts "Looking at #{hash}"
     klass = const_get(hash[:class_name])
-    puts "klass is #{hash[:class_name]} -- #{klass} >>"
     raise "Must be an Action" unless klass < Action
     klass.state_changes(*hash[:arguments], starting_state)
   end
 
   def self.state_changes actor_uid, *args, starting_state
     scs = []
+    raise "Can't use this move!" if starting_state.unit_by_id(actor_uid).fatigue >= fatigue_level
     scs += tire_other_units(actor_uid, starting_state)
     scs += enact_move(actor_uid, *args, scs.any?? scs.last.ending_state : starting_state)
     scs += fatigue_me(actor_uid, scs.any?? scs.last.ending_state : starting_state)
@@ -26,18 +25,21 @@ class Action
     scs = []
     # everyone else on that team who has moved gets fatigued
     (ss.units_by_team(actor.team) - [actor]).select{
-      |u| u.fatigue == :movement
+      |u| u.fatigue == 1
     }.each do |unit|
-      scs << StateChange::Fatigue.new(ss, unit.uid, :action)
+      scs << StateChange::Fatigue.new(ss, unit.uid, 2)
       ss = scs.last.ending_state
     end
     scs
   end
   def self.fatigue_me(actor_uid, starting_state)
-    [StateChange::Fatigue.new(starting_state, actor_uid)]
+    [StateChange::Fatigue.new(starting_state, actor_uid, fatigue_level)]
+  end
+  def self.fatigue_level
+    2
   end
   def fatigue_level
-    :used
+    self.class.fatigue_level
   end
 end
 
@@ -91,8 +93,8 @@ class Movement < Action
   def display_name
     "Move"
   end
-  def fatigue_level
-    :movement
+  def self.fatigue_level
+    1
   end
 end
 
@@ -109,7 +111,8 @@ class MeleeAttack < Action
     @power = power
   end
 
-  def targets actor, game
+  def targets actor_uid, game
+    actor = game.unit_by_id(actor_uid)
     game.units.select{|u| distance(u,actor) == 1 && u.team != actor.team }.map do |u|
       [u.x, u.y]
     end
@@ -271,7 +274,6 @@ class Blink < Action
     :select_from_targets
   end
   def targets actor_uid, game
-    puts "ACTOR is uid #{actor_uid}"
     actor = game.unit_by_id(actor_uid)
 
     targets = []

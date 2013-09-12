@@ -17,7 +17,7 @@ module StateChange
   end
 
   class Fatigue < StateChange
-    def initialize ss, uid, fatigue_level=:used
+    def initialize ss, uid, fatigue_level=2
       @uid = uid
       @fatigue_level = fatigue_level
       super(ss)
