@@ -180,6 +180,7 @@ class GameUi < Gosu::Window
       if most_recent_state? && unit
         lines = []
         lines << unit.class_name
+        lines << "Fatigue: #{unit.fatigue}"
         lines << ""
         lines << "#{unit.hp} / #{unit.max_hp}"
         lines.each_with_index do |l,i|
@@ -280,7 +281,7 @@ class GameUi < Gosu::Window
 
     if @current_move.targetted?
       if @current_move.targetted? == :select_from_target_list || @current_move.targetted? == :select_from_targets
-        @targets = @current_move.targets(@current_unit, current_state)
+        @targets = @current_move.targets(@current_unit.uid, current_state)
         # only move on if there are any targets...
         if @targets.any?
           if @current_move.targetted? == :select_from_target_list

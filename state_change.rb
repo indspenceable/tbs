@@ -16,6 +16,18 @@ module StateChange
     # we need to do a display thing here... observer type behavior?
   end
 
+  class Fatigue < StateChange
+    def initialize ss, uid, fatigue_level=:used
+      @uid = uid
+      @fatigue_level = fatigue_level
+      super(ss)
+    end
+    def enact(gs)
+      u = gs.unit_by_id(@uid)
+      u.fatigue!(@fatigue_level)
+    end
+  end
+
   # The initial gamestate
   class StartGame < StateChange
     def initialize ss

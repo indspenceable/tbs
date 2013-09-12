@@ -7,13 +7,11 @@ require './unit'
 
 class Server
   def initialize
-    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP1))]
+    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP2))]
   end
   def receive move
     move = YAML.load(move)
-    # unless state_changes[0].starting_state.same?(@state_changes[-1].ending_state)
-    #   return # this should probably return an error if it fails....
-    # end
+
     @state_changes += Action.exec(move, @state_changes.last.ending_state)
   end
 

@@ -10,6 +10,35 @@ class Action
     raise "Must be an Action" unless klass < Action
     klass.state_changes(*hash[:arguments], starting_state)
   end
+
+  def self.state_changes actor_uid, *args, starting_state
+    scs = []
+    scs += tire_other_units(actor_uid, starting_state)
+    scs += enact_move(actor_uid, *args, scs.any?? scs.last.ending_state : starting_state)
+    scs += fatigue_me(actor_uid, scs.any?? scs.last.ending_state : starting_state)
+    scs
+  end
+  def self.tire_other_units actor_uid, starting_state
+    # if no actor, return
+    return unless actor_uid
+    actor = starting_state.unit_by_id(actor_uid)
+    ss = starting_state
+    scs = []
+    # everyone else on that team who has moved gets fatigued
+    (ss.units_by_team(actor.team) - [actor]).select{
+      |u| u.fatigue == :movement
+    }.each do |unit|
+      scs << StateChange::Fatigue.new(ss, unit.uid, :action)
+      ss = scs.last.ending_state
+    end
+    scs
+  end
+  def self.fatigue_me(actor_uid, starting_state)
+    [StateChange::Fatigue.new(starting_state, actor_uid)]
+  end
+  def fatigue_level
+    :used
+  end
 end
 
 def distance(u1,u2)
@@ -29,7 +58,7 @@ class Movement < Action
     :path
   end
 
-  def self.state_changes actor_uid, path, starting_state
+  def self.enact_move actor_uid, path, starting_state
     gs = starting_state
     state_changes = []
 
@@ -62,6 +91,9 @@ class Movement < Action
   def display_name
     "Move"
   end
+  def fatigue_level
+    :movement
+  end
 end
 
 class MeleeAttack < Action
@@ -83,7 +115,7 @@ class MeleeAttack < Action
     end
   end
 
-  def self.state_changes actor_uid, target, starting_state
+  def self.enact_move actor_uid, target, starting_state
     [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid, @power)]
   end
 
@@ -93,7 +125,7 @@ class MeleeAttack < Action
 end
 
 class Assasinate < MeleeAttack
-  def self.state_changes actor_id, target, starting_state
+  def self.enact_move actor_id, target, starting_state
     if starting_state.can_see_friends?(starting_state.unit_at(*target).uid)
       [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @power)]
     else
@@ -119,7 +151,7 @@ class Heal < Action
       [u.x, u.y]
     end
   end
-  def self.state_changes actor_uid, target, starting_state
+  def self.enact_move actor_uid, target, starting_state
     [StateChange::Heal.new(starting_state, actor_uid, starting_state.unit_at(*target).uid)]
   end
   def display_name
@@ -152,7 +184,7 @@ class Bow < Action
     end
     _targets.map{|u| [u.x, u.y]}
   end
-  def self.state_changes actor_uid, target, starting_state
+  def self.enact_move actor_uid, target, starting_state
     [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid)]
   end
   def display_name
@@ -167,7 +199,7 @@ class Defend < Action
   def targetted?
     false
   end
-  def self.state_changes actor_uid, starting_state
+  def self.enact_move actor_uid, starting_state
     [StateChange::Defense.new(starting_state, actor_uid)]
   end
   def display_name
@@ -188,7 +220,7 @@ class Knockback < Action
       [u.x, u.y]
     end
   end
-  def self.state_changes actor_uid, target, starting_state
+  def self.enact_move actor_uid, target, starting_state
     actor = starting_state.unit_by_id(actor_uid)
 
     target_unit = starting_state.unit_at(*target)
@@ -208,7 +240,7 @@ class Knockback < Action
   end
 end
 class BullRush < Knockback
-  def self.state_changes actor_uid, target, starting_state
+  def self.enact_move actor_uid, target, starting_state
     actor = starting_state.unit_by_id(actor_uid)
 
     target_unit = starting_state.unit_at(*target)
@@ -239,6 +271,7 @@ class Blink < Action
     :select_from_targets
   end
   def targets actor_uid, game
+    puts "ACTOR is uid #{actor_uid}"
     actor = game.unit_by_id(actor_uid)
 
     targets = []
@@ -252,7 +285,7 @@ class Blink < Action
   def display_name
     "Blink"
   end
-  def self.state_changes actor_uid, target, starting_state
+  def self.enact_move actor_uid, target, starting_state
     if starting_state.block_movement?(actor_uid, target)
       [StateChange::Blocked.new(starting_state, actor_uid)]
     else

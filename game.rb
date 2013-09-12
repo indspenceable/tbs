@@ -111,6 +111,7 @@ xxxxxxxxxxxxxxxxxxxx
   def add_unit!(unit)
     raise "No id" unless unit.uid
     raise "Unit with that id already." if unit_by_id(unit.uid)
+    raise "Unit must have numeric id" unless unit.uid.is_a?(Fixnum)
     raise "Unit at that position already." if unit_at(unit.x, unit.y)
     @units << unit
   end
