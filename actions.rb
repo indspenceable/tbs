@@ -1,5 +1,10 @@
+require './buff'
 
 class Action
+  def initialize unit
+    @unit = unit
+  end
+
   def prep *args
     YAML.dump(arguments: args, klass: self)
   end
@@ -50,10 +55,6 @@ class Movement < Action
     58
   end
 
-  def initialize mpl
-    @max_path_length = mpl
-  end
-
   def targetted?
     :path
   end
@@ -81,7 +82,7 @@ class Movement < Action
   end
 
   def max_path_length
-    @max_path_length
+    @unit.buffed_movement_range
   end
 
   def valid_on_path?(point, game, team)
@@ -113,10 +114,6 @@ class MeleeAttack < Action
     :select_from_target_list
   end
 
-  def initialize power
-    @power = power
-  end
-
   def targets actor_uid, game
     actor = game.unit_by_id(actor_uid)
     game.units.select{|u| distance(u,actor) == 1 && u.team != actor.team }.map do |u|
@@ -125,7 +122,7 @@ class MeleeAttack < Action
   end
 
   def enact_move actor_uid, target, starting_state
-    [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid, @power)]
+    [StateChange::Attack.new(starting_state, actor_uid, starting_state.unit_at(*target).uid, @unit.buffed_attack_power)]
   end
 
   def display_name
@@ -136,9 +133,9 @@ end
 class Assasinate < MeleeAttack
   def enact_move actor_id, target, starting_state
     if starting_state.can_see_friends?(starting_state.unit_at(*target).uid)
-      [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @power)]
+      [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @unit.buffed_attack_power)]
     else
-      [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @power*3)]
+      [StateChange::Attack.new(starting_state, actor_id, starting_state.unit_at(*target).uid, @unit.buffed_attack_power*3)]
     end
   end
 
@@ -273,9 +270,6 @@ class BullRush < Knockback
 end
 
 class Blink < Action
-  def initialize range
-    @range = range
-  end
   def targetted?
     :select_from_targets
   end
@@ -283,8 +277,8 @@ class Blink < Action
     actor = game.unit_by_id(actor_uid)
 
     targets = []
-    (actor.y-@range).upto(actor.y+@range).each do |y|
-      targets += (actor.x-@range).upto(actor.x+@range).map do |x|
+    (actor.y-@unit.buffed_blink_range).upto(actor.y+@unit.buffed_blink_range).each do |y|
+      targets += (actor.x-@unit.buffed_blink_range).upto(actor.x+@unit.buffed_blink_range).map do |x|
         [x,y] unless !game.can_see?(x,y,actor.team) || game.blocked?(x,y) || game.unit_at(x,y)
       end.compact
     end

@@ -188,6 +188,12 @@ class GameUi < Gosu::Window
         lines << "Fatigue: #{%w(Unused Moved Attacked)[unit.fatigue]}"
         lines << ""
         lines << "#{unit.hp} / #{unit.max_hp}"
+        if unit.buffs.any?
+          lines << ""
+          unit.buffs.each do |b|
+            lines << "\t#{b.display_name}"
+          end
+        end
         lines.each_with_index do |l,i|
           @font.draw(l, MAP_WIDTH, (FONT_SIZE+4)*i, 10)
         end
@@ -316,7 +322,7 @@ class GameUi < Gosu::Window
   end
 
   def end_turn!
-    transmit_move_to_server(EndTurn.new.prep)
+    transmit_move_to_server(EndTurn.new(nil).prep)
     unselect_unit!
   end
 
