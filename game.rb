@@ -17,6 +17,9 @@ class Game
 
   def next_turn!
     @current_team = (@current_team+1)%2
+    units_by_team(@current_team).each do |u|
+      u.fatigue = 0
+    end
   end
 
   def current_team
@@ -87,7 +90,7 @@ xxxxxxxxxxxxxxxxxxxx
       gs.add_unit!(classes.shuffle.shift.new(x, y, i, team))
     end
 
-    gs.units.each {|u| u.fatigue! 0}
+    gs.units.each {|u| u.fatigue = 0}
 
     gs
   end
@@ -173,6 +176,9 @@ xxxxxxxxxxxxxxxxxxxx
     @unit_sees_friends[uid]
   end
 
+  def terrain(x,y)
+    @map[x][y] == :slime
+  end
   def terrain_state_changes(actor_uid, point)
     x,y = point
     sc = []

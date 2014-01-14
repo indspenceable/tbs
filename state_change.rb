@@ -24,7 +24,7 @@ module StateChange
     end
     def enact(gs)
       u = gs.unit_by_id(@uid)
-      u.fatigue!(@fatigue_level)
+      u.fatigue = @fatigue_level
     end
   end
 
@@ -33,9 +33,6 @@ module StateChange
       super(ss)
     end
     def enact(gs)
-      gs.units_by_team(gs.current_team).each do |u|
-        u.fatigue!(0)
-      end
       gs.next_turn!
     end
   end

@@ -99,9 +99,14 @@ end
 
 class EndTurn < Action
   def state_changes starting_state
-    [
-      StateChange::NextTurn.new(starting_state)
-    ]
+    gs = starting_state
+    scs = []
+    gs.units_by_team(gs.current_team).each do |u|
+      scs += u.end_of_turn_state_changes(gs)
+      gs = scs.last.ending_state if scs.any?
+    end
+    scs << StateChange::NextTurn.new(gs)
+    scs
   end
 end
 

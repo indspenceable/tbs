@@ -30,6 +30,18 @@ class Unit
     end
   end
 
+  def end_of_turn_state_changes(game_state)
+    gs = game_state
+    scs = []
+    buffs.each do |buff|
+      scs += buff.end_of_turn_state_changes(gs)
+      gs = scs.last.ending_state if scs.any?
+    end
+    if gs.terrain(x,y)
+      scs += self.send(:"terrain_#{gs.terrain(x,y)}", gs)
+    end
+    scs
+  end
 
   def respond_to? sym
     (sym.to_s =~ /\Abuffed_(.*)\z/ && respond_to?($1)) || super
@@ -37,11 +49,10 @@ class Unit
   # respond to "buffed_xxx methods by injecting them across this units buffs."
   def method_missing sym, *args
     if sym.to_s =~ /\Abuffed_(.*)\z/ && respond_to?($1)
-      puts "method is #{sym}"
-      buffs.inject(self.send($1)) do |a, buff|
-        method_name = :"adjusted_#{$1}"
+      original_method_name = $1
+      buffs.inject(self.send(original_method_name)) do |a, buff|
+        method_name = :"adjusted_#{original_method_name}"
         if buff.respond_to?(method_name)
-          puts "buffed #{a} to #{buff.send(method_name, a)}"
           buff.send(method_name, a)
         else
           a
@@ -52,7 +63,7 @@ class Unit
     end
   end
 
-  def fatigue! f
+  def fatigue= f
     @fatigue = f
   end
   def fatigue

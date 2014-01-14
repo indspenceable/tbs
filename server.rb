@@ -7,7 +7,7 @@ require './unit'
 
 class Server
   def initialize
-    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP2))]
+    @state_changes = [StateChange::StartGame.new(Game.seeded(2,2, Game::MAP1))]
   end
   def receive move
     move = YAML.load(move)
